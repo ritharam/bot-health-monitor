@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot Health | Navigation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #FBFBFB;
+            --sidebar: #FFFFFF;
+            --card: #FFFFFF;
+            --text: #1D1D1F;
+            --text-mute: #86868B;
+            --brand: #FFD700;
+            --accent: #000000;
+            --green: #34C759;
+            --amber: #FF9500;
+            --red: #FF3B30;
+            --border: rgba(0, 0, 0, 0.06);
+            --sidebar-width: 260px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        aside {
+            width: var(--sidebar-width);
+            background: var(--sidebar);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 12px;
+            z-index: 10;
+        }
+
+        .sidebar-header {
+            padding: 0 12px 32px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--brand);
+        }
+
+        .sidebar-header h1 {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            color: var(--text-mute);
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover {
+            background: rgba(0, 0, 0, 0.03);
+            color: var(--text);
+        }
+
+        .nav-item.active {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+            opacity: 0.7;
+        }
+
+        .nav-item.active .nav-icon {
+            opacity: 1;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px 60px;
+            position: relative;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .bot-select {
+            appearance: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        /* Content Views */
+        .view {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .view-title {
+            margin-bottom: 32px;
+        }
+
+        .view-title h2 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .view-title p {
+            color: var(--text-mute);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        /* Metric Grid (Overview) */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .metric-card {
+            background: var(--card);
+            padding: 24px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
+        }
+
+        .metric-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-mute);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.04em;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 12px;
+        }
+
+        .status-pill.healthy {
+            background: rgba(52, 199, 89, 0.1);
+            color: var(--green);
+        }
+
+        .status-pill.warning {
+            background: rgba(255, 149, 0, 0.1);
+            color: var(--amber);
+        }
+
+        .status-pill.critical {
+            background: rgba(255, 59, 48, 0.1);
+            color: var(--red);
+        }
+
+        /* Category Detail */
+        .detail-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 32px;
+        }
+
+        .chart-container {
+            background: var(--card);
+            padding: 32px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            height: 400px;
+        }
+
+        .table-card {
+            background: var(--card);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 16px 24px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-mute);
+            background: #FAFAFA;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 16px 24px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Footer Controls */
+        .footer-bar {
+            position: fixed;
+            bottom: 32px;
+            right: 60px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 8px 20px;
+            border-radius: 40px;
+            border: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-mute);
+        }
+
+        .refresh-trigger {
+            color: var(--text);
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        /* Icons */
+        .icon-svg {
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+    </style>
+</head>
+
+<body>
+    <aside>
+        <div class="sidebar-header">
+            <div class="logo-dot"></div>
+            <h1>Bot Monitoring</h1>
+        </div>
+        <nav class="nav-group">
+            <div class="nav-item active" onclick="switchView('overview')">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                Overview
+            </div>
+            <div class="nav-item" onclick="switchView('uptime')">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                Bot Downtime
+            </div>
+            <div class="nav-item" onclick="switchView('apis')">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                </svg>
+                APIs
+            </div>
+            <div class="nav-item" onclick="switchView('kb')">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                Knowledge Base
+            </div>
+            <div class="nav-item" onclick="switchView('llm')">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
+                    <path d="M12 12v10"></path>
+                    <path d="M12 12L2.69 7"></path>
+                </svg>
+                LLM Performance
+            </div>
+        </nav>
+    </aside>
+
+    <main>
+        <div class="top-bar">
+            <div id="view-indicator" style="font-size: 13px; font-weight: 600; color: var(--text-mute);">Dashboard /
+                Overview</div>
+            <select class="bot-select" id="bot-selector" onchange="refreshData()">
+                <option value="x1749095342235">Kent RO - Agentic AI Bot</option>
+                <option value="x1674052117168">Decathalon Chat</option>
+                <option value="x1752564834557">Swiggy Bot</option>
+            </select>
+        </div>
+
+        <!-- Overview View -->
+        <div id="view-overview" class="view active">
+            <div class="view-title">
+                <h2>System Health</h2>
+                <p>Aggregated status across all monitored categories.</p>
+            </div>
+            <div class="metrics-grid" id="overview-metrics">
+                <!-- Injected -->
+            </div>
+            <div class="chart-container">
+                <canvas id="overview-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Category Detail View (Generic Template) -->
+        <div id="view-detail" class="view">
+            <div class="view-title">
+                <h2 id="detail-title">Category Detail</h2>
+                <p id="detail-desc">Detailed analysis and recent incidents.</p>
+            </div>
+            <div class="detail-layout">
+                <div class="chart-section" id="detail-charts"
+                    style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+                    <div class="chart-container">
+                        <canvas id="detail-chart"></canvas>
+                    </div>
+                    <div class="chart-container" id="distribution-chart-container" style="display: none;">
+                        <canvas id="distribution-chart"></canvas>
+                    </div>
+                </div>
+                <div class="table-card">
+                    <table id="detail-table">
+                        <thead>
+                            <tr id="table-head"></tr>
+                        </thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-bar">
+            <span id="sync-status">Live Sync Active</span>
+            <button class="refresh-trigger" onclick="refreshData()">Refresh Data</button>
+            <span id="last-refresh" class="mono">--:--</span>
+        </div>
+    </main>
+
+    <script>
+        const CATEGORIES = [
+            { id: 'uptime', label: 'Bot Downtime', desc: 'Tracking bot response delays exceeding 5 minutes.' },
+            { id: 'apis', label: 'APIs', desc: 'External API failure alerts and codes.' },
+            { id: 'kb', label: 'Knowledge Base', desc: 'KB failure analysis and unanswered queries.' },
+            { id: 'llm', label: 'LLM Performance', desc: 'LLM response failures and quality metrics.' }
+        ];
+
+        let currentView = 'overview';
+        let charts = {};
+
+        function generateMockData() {
+            const bot = document.getElementById('bot-selector').value;
+            const rand = () => Math.random();
+            const now = new Date();
+
+            return {
+                summary: {
+                    uptime: { val: (98 + rand() * 2).toFixed(2) + '%', status: bot === 'hr' ? 'warning' : 'healthy' },
+                    apis: { val: (bot === 'sales' ? 72.4 : 94 + rand() * 6).toFixed(1) + '%', status: bot === 'sales' ? 'critical' : 'healthy' },
+                    kb: { val: (92 + rand() * 8).toFixed(1) + '%', status: 'healthy' },
+                    llm: { val: (88 + rand() * 12).toFixed(1) + '%', status: 'warning' }
+                },
+                incidents: Array.from({ length: 10 }, (_, i) => ({
+                    time: new Date(now - i * 1800000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    event: ['API Timeout', 'DB Flicker', 'LLM Hallucination', 'Form Drop'][Math.floor(rand() * 4)],
+                    severity: ['Low', 'Medium', 'High', 'Critical'][Math.floor(rand() * 4)]
+                }))
+            };
+        }
+
+        async function switchView(viewId) {
+            currentView = viewId;
+
+            // Update Sidebar
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.innerText.toLowerCase().includes(viewId.substr(0, 3))) {
+                    item.classList.add('active');
+                }
+            });
+            if (viewId === 'overview') document.querySelector('.nav-item').classList.add('active');
+
+            currentView = viewId;
+
+            // Update View Visibility
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('distribution-chart-container').style.display = (viewId === 'uptime' ? 'block' : 'none');
+            document.getElementById('detail-charts').style.gridTemplateColumns = (viewId === 'uptime' ? '1fr 1fr' : '1fr');
+
+            const indicator = document.getElementById('view-indicator');
+
+            if (viewId === 'overview') {
+                document.getElementById('view-overview').classList.add('active');
+                indicator.innerText = 'Dashboard / Overview';
+                refreshData();
+            } else if (viewId === 'uptime') {
+                document.getElementById('view-detail').classList.add('active');
+                const cat = CATEGORIES.find(c => c.id === viewId);
+                document.getElementById('detail-title').innerText = cat.label;
+                document.getElementById('detail-desc').innerText = cat.desc;
+                indicator.innerText = `Dashboard / ${cat.label}`;
+                await loadDowntimeMetrics();
+            } else if (viewId === 'apis') {
+                document.getElementById('view-detail').classList.add('active');
+                const cat = CATEGORIES.find(c => c.id === viewId);
+                document.getElementById('detail-title').innerText = cat.label;
+                document.getElementById('detail-desc').innerText = cat.desc;
+                indicator.innerText = `Dashboard / ${cat.label}`;
+                await loadApiAlerts();
+            } else if (viewId === 'llm') {
+                document.getElementById('view-detail').classList.add('active');
+                const cat = CATEGORIES.find(c => c.id === viewId);
+                document.getElementById('detail-title').innerText = cat.label;
+                document.getElementById('detail-desc').innerText = cat.desc;
+                indicator.innerText = `Dashboard / ${cat.label}`;
+                await loadLlmMetrics();
+            } else if (viewId === 'kb') {
+                document.getElementById('view-detail').classList.add('active');
+                const cat = CATEGORIES.find(c => c.id === viewId);
+                document.getElementById('detail-title').innerText = cat.label;
+                document.getElementById('detail-desc').innerText = cat.desc;
+                indicator.innerText = `Dashboard / ${cat.label}`;
+                await loadKbMetrics();
+            } else {
+                const cat = CATEGORIES.find(c => c.id === viewId);
+                document.getElementById('view-detail').classList.add('active');
+                document.getElementById('detail-title').innerText = cat.label;
+                document.getElementById('detail-desc').innerText = cat.desc;
+                indicator.innerText = `Dashboard / ${cat.label}`;
+                renderDetailView(cat);
+                refreshData();
+            }
+        }
+
+        async function loadApiAlerts() {
+            const botId = document.getElementById('bot-selector').value;
+            const status = document.getElementById('sync-status');
+            status.innerText = 'Syncing APIs...';
+
+            try {
+                const response = await fetch(`http://localhost:3001/api/alerts?botId=${botId}`);
+                const data = await response.json();
+
+                if (data.error) showFetchError(data.error);
+
+                renderApiTable(data.alerts || []);
+                status.innerText = 'Live Sync Active';
+                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (error) {
+                console.error('Error fetching API alerts:', error);
+                status.innerText = 'Sync Error';
+                showFetchError('Failed to connect to monitoring server.');
+            }
+        }
+
+        function showFetchError(errMsg) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px;">
+                <div style="background: rgba(255, 59, 48, 0.1); color: var(--red); padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600;">
+                    ⚠️ Fetch Error: ${errMsg}
+                </div>
+            </td></tr>` + tbody.innerHTML;
+        }
+
+        function renderApiTable(alerts) {
+            const head = document.getElementById('table-head');
+            head.innerHTML = '<th>Timestamp</th><th>Session ID</th><th>Status Code</th><th>Chat URL</th>';
+
+            const tbody = document.getElementById('table-body');
+            if (alerts.length === 0) {
+                if (!tbody.innerHTML.includes('Fetch Error')) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-mute);">No records found in the last 31 days.</td></tr>';
+                }
+                return;
+            }
+
+            const rowsHtml = alerts.map(a => {
+                const isError = a.statusCode !== 200;
+                const statusClass = isError ? 'critical' : 'healthy';
+                const ts = parseFloat(a.timestamp);
+                const dateStr = !isNaN(ts) ? new Date(ts).toLocaleString() : 'N/A';
+
+                return `
+                    <tr>
+                        <td class="mono">${dateStr}</td>
+                        <td class="mono">${a.sessionId || 'N/A'}</td>
+                        <td><span class="status-pill ${statusClass}">${a.statusCode}</span></td>
+                        <td><a href="${a.chatURL}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
+                    </tr>
+                `;
+            }).join('');
+
+            if (tbody.innerHTML.includes('Fetch Error')) {
+                const parts = tbody.innerHTML.split('</td></tr>');
+                const errorPart = parts[0] + '</td></tr>';
+                tbody.innerHTML = errorPart + rowsHtml;
+            } else {
+                tbody.innerHTML = rowsHtml;
+            }
+
+            const counts = {};
+            alerts.forEach(a => {
+                const ts = parseFloat(a.timestamp);
+                if (!isNaN(ts)) {
+                    const hourDate = new Date(ts);
+                    hourDate.setMinutes(0, 0, 0);
+                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
+                    counts[key] = (counts[key] || 0) + 1;
+                }
+            });
+
+            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
+            const data = labels.map(l => counts[l]);
+            initChart('detail-chart', 'line', data.length > 0 ? data : [0, 0, 0, 0, 0], labels, 'var(--accent)');
+        }
+
+        async function loadDowntimeMetrics() {
+            const botId = document.getElementById('bot-selector').value;
+            const res = await fetch(`http://localhost:3001/api/downtime-metrics?botId=${botId}`);
+            const data = await res.json();
+
+            const head = document.getElementById('table-head');
+            head.innerHTML = '<th>Session ID</th><th>Delay Duration</th><th>Chat URL</th>';
+
+            renderDowntimeTable(data);
+        }
+
+        function renderDowntimeTable(metrics) {
+            const tbody = document.getElementById('table-body');
+            const validMetrics = metrics.filter(m => m.delay_seconds >= 300);
+
+            if (validMetrics.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px; color: var(--text-mute);">No bot delays detected.</td></tr>';
+                initChart('detail-chart', 'line', [0, 0, 0, 0, 0], ['N/A', 'N/A', 'N/A', 'N/A', 'N/A'], 'var(--accent)');
+                return;
+            }
+
+            tbody.innerHTML = validMetrics.map(m => {
+                const statusClass = 'critical';
+                const h = Math.floor(m.delay_seconds / 3600);
+                const mins = Math.floor((m.delay_seconds % 3600) / 60);
+                const secs = m.delay_seconds % 60;
+
+                let statusLabel = '';
+                if (h > 0) statusLabel = `${h}h ${mins}m`;
+                else if (mins > 0) statusLabel = `${mins}m ${secs}s`;
+                else statusLabel = `${secs}s`;
+                return `
+                    <tr>
+                        <td class="mono">${m.sessionId || 'N/A'}</td>
+                        <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+                        <td><a href="${m.chaturl}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
+                    </tr>
+                `;
+            }).join('');
+
+            const counts = {};
+            validMetrics.forEach(m => {
+                const hourDate = new Date(m.timestamp);
+                if (!isNaN(hourDate.getTime())) {
+                    hourDate.setMinutes(0, 0, 0);
+                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
+                    counts[key] = (counts[key] || 0) + 1;
+                }
+            });
+
+            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
+            const dataPoints = labels.map(l => counts[l]);
+            initChart('detail-chart', 'line', dataPoints.length > 0 ? dataPoints : [0, 0, 0, 0, 0], labels, 'var(--accent)');
+
+            // Distribution Chart
+            const dist = { '5-10m': 0, '10-20m': 0, '20m+': 0 };
+            validMetrics.forEach(m => {
+                const mins = m.delay_seconds / 60;
+                if (mins < 10) dist['5-10m']++;
+                else if (mins < 20) dist['10-20m']++;
+                else dist['20m+']++;
+            });
+            initChart('distribution-chart', 'doughnut', Object.values(dist), Object.keys(dist), ['#34C759', '#FF9500', '#FF3B30']);
+        }
+
+        async function loadLlmMetrics() {
+            const botId = document.getElementById('bot-selector').value;
+            const res = await fetch(`http://localhost:3001/api/llm-metrics?botId=${botId}`);
+            const data = await res.json();
+
+            const head = document.getElementById('table-head');
+            head.innerHTML = '<th>Timestamp</th><th>Session ID</th><th>Status</th>';
+
+            renderLlmTable(data);
+        }
+
+        function renderLlmTable(metrics) {
+            const tbody = document.getElementById('table-body');
+            const failures = metrics.filter(m => m.success === 0 || m.success === false || m.success === '0');
+
+            if (failures.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px; color: var(--text-mute);">No LLM failures found.</td></tr>';
+                initChart('detail-chart', 'line', [0, 0, 0, 0, 0], ['N/A', 'N/A', 'N/A', 'N/A', 'N/A'], 'var(--accent)');
+                return;
+            }
+
+            tbody.innerHTML = failures.map(m => {
+                const statusClass = 'critical';
+                const statusLabel = 'Failed';
+                const dateObj = new Date(m.timestamp);
+                const dateStr = !isNaN(dateObj.getTime()) ? dateObj.toLocaleString() : m.timestamp;
+                return `
+                    <tr>
+                        <td class="mono">${dateStr}</td>
+                        <td class="mono">${m.sessionId || 'N/A'}</td>
+                        <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+                    </tr>
+                `;
+            }).join('');
+
+            const counts = {};
+            metrics.forEach(m => {
+                const hourDate = new Date(m.timestamp);
+                if (!isNaN(hourDate.getTime())) {
+                    hourDate.setMinutes(0, 0, 0);
+                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
+                    counts[key] = (counts[key] || 0) + 1;
+                }
+            });
+
+            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
+            const dataPoints = labels.map(l => counts[l]);
+            initChart('detail-chart', 'line', dataPoints.length > 0 ? dataPoints : [0, 0, 0, 0, 0], labels, 'var(--accent)');
+        }
+
+        async function loadKbMetrics() {
+            const botId = document.getElementById('bot-selector').value;
+            const res = await fetch(`http://localhost:3001/api/kb-metrics?botId=${botId}`);
+            const data = await res.json();
+
+            const head = document.getElementById('table-head');
+            head.innerHTML = '<th>Timestamp</th><th>Session ID</th><th>Answered Status</th><th>Chat URL</th>';
+
+            renderKbTable(data);
+        }
+
+        function renderKbTable(metrics) {
+            const tbody = document.getElementById('table-body');
+            const failures = metrics.filter(m => m.was_answered === 0 || m.was_answered === false || m.was_answered === '0');
+
+            if (failures.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-mute);">No KB failures found.</td></tr>';
+                initChart('detail-chart', 'line', [0, 0, 0, 0, 0], ['N/A', 'N/A', 'N/A', 'N/A', 'N/A'], 'var(--accent)');
+                return;
+            }
+
+            tbody.innerHTML = failures.map(m => {
+                const statusClass = 'critical';
+                const statusLabel = 'Unanswered';
+                const dateObj = new Date(m.timestamp);
+                const dateStr = !isNaN(dateObj.getTime()) ? dateObj.toLocaleString() : m.timestamp;
+                return `
+                    <tr>
+                        <td class="mono">${dateStr}</td>
+                        <td class="mono">${m.sessionId || 'N/A'}</td>
+                        <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+                        <td><a href="${m.chaturl}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
+                    </tr>
+                `;
+            }).join('');
+
+            const counts = {};
+            metrics.forEach(m => {
+                const hourDate = new Date(m.timestamp);
+                if (!isNaN(hourDate.getTime())) {
+                    hourDate.setMinutes(0, 0, 0);
+                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
+                    counts[key] = (counts[key] || 0) + 1;
+                }
+            });
+
+            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
+            const dataPoints = labels.map(l => counts[l]);
+            initChart('detail-chart', 'line', dataPoints.length > 0 ? dataPoints : [0, 0, 0, 0, 0], labels, 'var(--accent)');
+        }
+
+        function renderDetailView(cat) {
+            const head = document.getElementById('table-head');
+            head.innerHTML = '<th>Time</th><th>Incident</th><th>Severity</th>';
+        }
+
+        async function refreshData() {
+            const botId = document.getElementById('bot-selector').value;
+
+            if (currentView === 'overview') {
+                try {
+                    const res = await fetch(`http://localhost:3001/api/summary?botId=${botId}`);
+                    const summaryData = await res.json();
+                    renderOverview(summaryData);
+                } catch (error) {
+                    console.error('Error fetching summary:', error);
+                }
+            } else if (currentView === 'uptime') {
+                await loadDowntimeMetrics();
+            } else if (currentView === 'llm') {
+                await loadLlmMetrics();
+            } else if (currentView === 'kb') {
+                await loadKbMetrics();
+            } else if (currentView === 'apis') {
+                await loadApiAlerts();
+            }
+            document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function renderOverview(summary) {
+            const grid = document.getElementById('overview-metrics');
+            grid.innerHTML = '';
+
+            const cards = [
+                { id: 'uptime', label: 'High Delays (>5m)', val: summary.uptime || 0, status: (summary.uptime > 0 ? 'critical' : 'healthy') },
+                { id: 'apis', label: 'API Failures', val: summary.apis || 0, status: (summary.apis > 0 ? 'critical' : 'healthy') },
+                { id: 'kb', label: 'Unanswered (KB)', val: summary.kb || 0, status: (summary.kb > 0 ? 'critical' : 'healthy') },
+                { id: 'llm', label: 'LLM Failures', val: summary.llm || 0, status: (summary.llm > 0 ? 'critical' : 'healthy') }
+            ];
+
+            cards.forEach(cardData => {
+                const card = document.createElement('div');
+                card.className = 'metric-card';
+                card.onclick = () => switchView(cardData.id);
+                card.style.cursor = 'pointer';
+                card.innerHTML = `
+                    <div class="metric-label">${cardData.label}</div>
+                    <div class="metric-value">${cardData.val}</div>
+                    <div class="status-pill ${cardData.status}">
+                        <span style="font-size: 8px;">●</span> ${cardData.val > 0 ? 'ACTION REQUIRED' : 'HEALTHY'}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            initChart('overview-chart', 'bar', [99, 98, 92, 94, 92, 88], ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+        }
+
+        function renderDetail(incidents) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = incidents.map(e => `
+                <tr>
+                    <td>${e.time}</td>
+                    <td>${e.event}</td>
+                    <td><span class="status-pill ${e.severity === 'Critical' || e.severity === 'High' ? 'critical' : e.severity === 'Medium' ? 'warning' : 'healthy'}">${e.severity}</span></td>
+                </tr>
+            `).join('');
+            initChart('detail-chart', 'line', Array.from({ length: 12 }, () => 70 + Math.random() * 30));
+        }
+
+        function initChart(canvasId, type, dataPoints, customLabels, color = '#000') {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (charts[canvasId]) charts[canvasId].destroy();
+            const labels = customLabels || Array.from({ length: dataPoints.length }, (_, i) => i + ':00');
+            charts[canvasId] = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataPoints,
+                        borderColor: color,
+                        backgroundColor: type === 'line' ? (color === '#000' ? 'rgba(0,0,0,0.02)' : color.replace(')', ', 0.1)').replace('rgb', 'rgba')) : color,
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        fill: type === 'line'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#86868B', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { color: '#86868B', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        setInterval(() => { refreshData(); }, 30000);
+        window.onload = () => switchView('overview');
+    </script>
+</body>
+
+</html>

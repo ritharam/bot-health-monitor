@@ -1,0 +1,5 @@
+{
+  "name": "yellow.ai Bot Health Monitor",
+  "description": "Real-time chatbot health monitoring dashboard with failure analytics and alerting.",
+  "requestFramePermissions": []
+}
