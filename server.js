@@ -10,6 +10,7 @@ const port = 3001;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public'));
 
 // Database setup
 const db = new Database('alerts.db');

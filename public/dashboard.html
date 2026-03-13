@@ -524,7 +524,7 @@
             status.innerText = 'Syncing APIs...';
 
             try {
-                const response = await fetch(`http://localhost:3001/api/alerts?botId=${botId}`);
+                const response = await fetch(`/api/alerts?botId=${botId}`);
                 const data = await response.json();
 
                 if (data.error) showFetchError(data.error);
@@ -602,7 +602,7 @@
 
         async function loadDowntimeMetrics() {
             const botId = document.getElementById('bot-selector').value;
-            const res = await fetch(`http://localhost:3001/api/downtime-metrics?botId=${botId}`);
+            const res = await fetch(`/api/downtime-metrics?botId=${botId}`);
             const data = await res.json();
 
             const head = document.getElementById('table-head');
@@ -667,7 +667,7 @@
 
         async function loadLlmMetrics() {
             const botId = document.getElementById('bot-selector').value;
-            const res = await fetch(`http://localhost:3001/api/llm-metrics?botId=${botId}`);
+            const res = await fetch(`/api/llm-metrics?botId=${botId}`);
             const data = await res.json();
 
             const head = document.getElementById('table-head');
@@ -717,7 +717,7 @@
 
         async function loadKbMetrics() {
             const botId = document.getElementById('bot-selector').value;
-            const res = await fetch(`http://localhost:3001/api/kb-metrics?botId=${botId}`);
+            const res = await fetch(`/api/kb-metrics?botId=${botId}`);
             const data = await res.json();
 
             const head = document.getElementById('table-head');
@@ -776,7 +776,7 @@
 
             if (currentView === 'overview') {
                 try {
-                    const res = await fetch(`http://localhost:3001/api/summary?botId=${botId}`);
+                    const res = await fetch(`/api/summary?botId=${botId}`);
                     const summaryData = await res.json();
                     renderOverview(summaryData);
                 } catch (error) {
