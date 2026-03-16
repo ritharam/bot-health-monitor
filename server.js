@@ -134,6 +134,10 @@ app.get('/api/sync', async (req, res) => {
   }
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', environment: process.env.VERCEL ? 'vercel' : 'local' });
+});
+
 // API endpoint
 app.get('/api/alerts', (req, res) => {
   const { botId } = req.query;
@@ -285,5 +289,21 @@ if (!process.env.VERCEL) {
     console.log(`Server running at http://localhost:${port}`);
   });
 }
+
+// 404 Handler
+app.use((req, res) => {
+  console.warn(`[404] ${req.method} ${req.url}`);
+  res.status(404).json({ error: `Path ${req.url} not found` });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('[SERVER ERROR]', err);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: err.message,
+    path: req.url
+  });
+});
 
 export default app;
