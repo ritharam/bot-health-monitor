@@ -428,7 +428,13 @@
 
         <div class="footer-bar">
             <span id="sync-status">Live Sync Active</span>
-            <button class="refresh-trigger" onclick="refreshData()">Refresh Data</button>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <span style="font-size: 0.8em; color: var(--text-mute); opacity: 0.7;">Stats automatically poll every 15
+                    mins</span>
+                <button class="refresh-trigger" style="background: var(--bg-surface); border: 1px solid var(--border);"
+                    onclick="triggerManualSync()">Force Data Sync</button>
+                <button class="refresh-trigger" onclick="refreshData()">Refresh Dashboard</button>
+            </div>
             <span id="last-refresh" class="mono">--:--</span>
         </div>
     </main>
@@ -546,6 +552,27 @@
                 <div style="opacity: 0.8; font-family: monospace; font-size: 0.9em;">${errorMsg}</div>
                 <div style="margin-top: 16px; font-size: 0.85em; color: var(--text-mute);">Please verify the Bot ID and API Key in the backend configuration.</div>
             </td></tr>`;
+        }
+
+        async function triggerManualSync() {
+            const status = document.getElementById('sync-status');
+            const originalText = status.innerText;
+            status.innerText = 'Triggering Sync...';
+            try {
+                const response = await fetch('/api/sync');
+                const data = await response.json();
+                if (data.success) {
+                    status.innerText = 'Sync Completed';
+                    setTimeout(() => status.innerText = 'Live Sync Active', 3000);
+                    refreshData();
+                } else {
+                    throw new Error(data.error || 'Sync failed');
+                }
+            } catch (error) {
+                console.error('Manual sync failed:', error);
+                status.innerText = 'Sync Failed';
+                setTimeout(() => status.innerText = originalText, 5000);
+            }
         }
 
         async function loadApiAlerts() {
