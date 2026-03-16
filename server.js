@@ -13,7 +13,9 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Database setup
-const db = new Database('alerts.db');
+// Use /tmp for writable database in Vercel environment
+const dbPath = process.env.VERCEL ? '/tmp/alerts.db' : 'alerts.db';
+const db = new Database(dbPath);
 db.exec(`
   CREATE TABLE IF NOT EXISTS api_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -114,11 +116,23 @@ async function pollAllBots() {
   }
 }
 
-// Initial fetch
-pollAllBots();
+// Initial fetch (skip in Vercel to avoid timeout on startup)
+if (!process.env.VERCEL) {
+  pollAllBots();
+  // Polling for all every 15 minutes
+  setInterval(pollAllBots, 15 * 60 * 1000);
+}
 
-// Polling for all every 15 minutes
-setInterval(pollAllBots, 15 * 60 * 1000);
+// Manual sync endpoint for Vercel Cron
+app.get('/api/sync', async (req, res) => {
+  try {
+    await pollAllBots();
+    res.json({ success: true, message: 'Sync completed' });
+  } catch (error) {
+    console.error('Sync failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // API endpoint
 app.get('/api/alerts', (req, res) => {
@@ -266,6 +280,10 @@ app.get('/api/summary', (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+  });
+}
+
+export default app;
