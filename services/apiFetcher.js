@@ -1,6 +1,6 @@
 export async function fetchAlerts(botId, apiKey, db) {
     console.log(`Fetching alerts for bot: ${botId}...`);
-    const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}&x-api-key=${apiKey}`;
+    const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}`;
 
     const payload = {
         type: "json",
@@ -55,17 +55,19 @@ export async function fetchAlerts(botId, apiKey, db) {
         console.log(`API response - Success: ${data.success}, Message: ${data.message}, RawRecords: ${rawRecords.length}, Failures: ${records.length}`);
 
         const insert = db.prepare(`
-            INSERT OR IGNORE INTO api_alerts (botId, chatURL, timestamp, sessionId, statusCode)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO api_alerts (botId, apiName, chatURL, timestamp, sessionId, statusCode)
+            VALUES (?, ?, ?, ?, ?, ?)
         `);
 
         for (const record of records) {
+            // Priority given to 'name' as requested, then common field names from Yellow.ai Druid schema
+            const apiNameVal = record.name || record.apiName || record.api || record.api_name || record.path || 'Unknown API';
             const chatURLVal = record.chatURL;
             const tsVal = record.__time || record.timestamp || new Date().toISOString();
             const sessionVal = record.sessionId || record.uid;
             const statusVal = parseInt(record.statusCode || record.status_code || record.status || '0');
 
-            insert.run(botId, chatURLVal, tsVal, sessionVal, statusVal);
+            insert.run(botId, apiNameVal, chatURLVal, tsVal, sessionVal, statusVal);
         }
 
         // Cleanup any existing 200 codes to ensure dashboard only shows failures

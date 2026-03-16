@@ -18,10 +18,28 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS api_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     botId TEXT,
+    apiName TEXT,
     chatURL TEXT,
     timestamp TEXT,
     sessionId TEXT,
     statusCode INTEGER,
+    UNIQUE(sessionId, timestamp)
+  )
+`);
+try {
+  db.prepare('ALTER TABLE api_alerts ADD COLUMN apiName TEXT').run();
+} catch (e) {
+  // Column might already exist
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS bot_unresponsive (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    botId TEXT,
+    timestamp TEXT,
+    sessionId TEXT,
+    lastMessage TEXT,
+    chatURL TEXT,
     UNIQUE(sessionId, timestamp)
   )
 `);
@@ -40,7 +58,7 @@ db.exec(`
     botId TEXT,
     timestamp TEXT,
     sessionId TEXT,
-    chaturl TEXT,
+    chatURL TEXT,
     was_answered BOOLEAN,
     UNIQUE(sessionId, timestamp)
   )
@@ -52,6 +70,7 @@ db.exec(`
     botId TEXT,
     timestamp TEXT,
     sessionId TEXT,
+    chatURL TEXT,
     success BOOLEAN,
     UNIQUE(sessionId, timestamp)
   )
@@ -63,22 +82,24 @@ db.exec(`
     botId TEXT,
     timestamp TEXT,
     sessionId TEXT,
-    chaturl TEXT,
+    chatURL TEXT,
     has_delay BOOLEAN,
     delay_seconds INTEGER,
     UNIQUE(sessionId, timestamp)
   )
 `);
 
-import { fetchAlerts } from './apiFetcher.js';
-import { fetchLlmMetrics } from './llmFetcher.js';
-import { fetchKbMetrics } from './kbFetcher.js';
-import { fetchDowntimeMetrics } from './downtimeFetcher.js';
+import { fetchAlerts } from './services/apiFetcher.js';
+import { fetchLlmMetrics } from './services/llmFetcher.js';
+import { fetchKbMetrics } from './services/kbFetcher.js';
+import { fetchDowntimeMetrics } from './services/downtimeFetcher.js';
+import { fetchUnresponsiveMetrics } from './services/unresponsiveFetcher.js';
 
 const MONITORED_BOTS = [
   { id: 'x1749095342235', apiKey: 'oC73e4WTensl0_l4O4L4cgXHCQ4y0dGaoxyEXVjr', name: 'Kent RO' },
   { id: 'x1674052117168', apiKey: '_-8bXdPQjVIxzhvRh1ihw1WEzItbzAnL_2o65QMz', name: 'Decathalon' },
-  { id: 'x1752564834557', apiKey: 'AILuVtwLDn17gXlvjhcU1oW02GqEwYN2xy0T1CPg', name: 'Swiggy' }
+  { id: 'x1752564834557', apiKey: '5BJIvSMO1WQr8MuaLXdvadBndCOnywO3dmjD5NqF', name: 'Swiggy' },
+  { id: 'x1751972733090', apiKey: 'Ktq27KeRuR4icukWOQR4aZFcjQoIrhfOJrzENKGq', name: 'JFL Dominos' }
 ];
 
 console.log(`Bot monitoring initialized for: ${MONITORED_BOTS.map(b => b.name).join(', ')}`);
@@ -87,8 +108,9 @@ async function pollAllBots() {
   for (const bot of MONITORED_BOTS) {
     fetchAlerts(bot.id, bot.apiKey, db);
     fetchLlmMetrics(bot.id, bot.apiKey, db);
-    fetchKbMetrics(bot.id, bot.apiKey, db);
-    fetchDowntimeMetrics(bot.id, bot.apiKey, db);
+    await fetchKbMetrics(bot.id, bot.apiKey, db);
+    await fetchDowntimeMetrics(bot.id, bot.apiKey, db);
+    await fetchUnresponsiveMetrics(bot.id, bot.apiKey, db);
   }
 }
 
@@ -134,7 +156,8 @@ app.get('/api/llm-metrics', (req, res) => {
   query += ' ORDER BY timestamp DESC LIMIT 1000';
 
   const metrics = db.prepare(query).all(...params);
-  res.json(metrics);
+  const error = botId ? db.prepare('SELECT error FROM sync_errors WHERE botId = ?').get(botId) : null;
+  res.json({ metrics, error: error?.error });
 });
 
 app.get('/api/kb-metrics', (req, res) => {
@@ -154,7 +177,8 @@ app.get('/api/kb-metrics', (req, res) => {
   query += ' ORDER BY timestamp DESC LIMIT 1000';
 
   const metrics = db.prepare(query).all(...params);
-  res.json(metrics);
+  const error = botId ? db.prepare('SELECT error FROM sync_errors WHERE botId = ?').get(botId) : null;
+  res.json({ metrics, error: error?.error });
 });
 
 app.get('/api/downtime-metrics', (req, res) => {
@@ -170,7 +194,25 @@ app.get('/api/downtime-metrics', (req, res) => {
   query += ' ORDER BY timestamp DESC LIMIT 1000';
 
   const metrics = db.prepare(query).all(...params);
-  res.json(metrics);
+  const error = botId ? db.prepare('SELECT error FROM sync_errors WHERE botId = ?').get(botId) : null;
+  res.json({ metrics, error: error?.error });
+});
+
+app.get('/api/unresponsive-metrics', (req, res) => {
+  const { botId } = req.query;
+  let query = 'SELECT * FROM bot_unresponsive';
+  let params = [];
+
+  if (botId) {
+    query += ' WHERE botId = ?';
+    params.push(botId);
+  }
+
+  query += ' ORDER BY timestamp DESC LIMIT 1000';
+
+  const records = db.prepare(query).all(...params);
+  const error = botId ? db.prepare('SELECT error FROM sync_errors WHERE botId = ?').get(botId) : null;
+  res.json({ records, error: error?.error });
 });
 
 app.get('/api/summary', (req, res) => {
@@ -207,6 +249,15 @@ app.get('/api/summary', (req, res) => {
       downtimeQuery += ' AND botId = ?';
     }
     summary.uptime = db.prepare(downtimeQuery).get(...params).count;
+
+    // Bot Unresponsive
+    let unresponsiveQuery = 'SELECT COUNT(*) as count FROM bot_unresponsive';
+    if (botId) {
+      unresponsiveQuery += ' WHERE botId = ?';
+    } else {
+      unresponsiveQuery += ' WHERE 1=1'; // placeholder for consistency if needed, but not strictly necessary here
+    }
+    summary.unresponsive = db.prepare(unresponsiveQuery).get(...params).count;
 
     res.json(summary);
   } catch (error) {

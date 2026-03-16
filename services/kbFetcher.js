@@ -1,6 +1,6 @@
 export async function fetchKbMetrics(botId, apiKey, db) {
     console.log(`Fetching KB metrics for bot: ${botId}...`);
-    const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}&x-api-key=${apiKey}`;
+    const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}`;
 
     const payload = {
         type: "json",
@@ -49,14 +49,14 @@ export async function fetchKbMetrics(botId, apiKey, db) {
         const records = rawRecords.filter(r => r.was_answered === false || r.was_answered === "false");
 
         const insert = db.prepare(`
-            INSERT OR IGNORE INTO kb_metrics (botId, timestamp, sessionId, chaturl, was_answered)
+            INSERT OR IGNORE INTO kb_metrics (botId, timestamp, sessionId, chatURL, was_answered)
             VALUES (?, ?, ?, ?, ?)
         `);
 
         for (const record of records) {
             const tsVal = record.timestamp || new Date().toISOString();
             const sessionVal = record.sessionId || record.uid;
-            const chatUrlVal = record.chaturl || '';
+            const chatUrlVal = record.chatURL || record.chaturl || '';
             const answeredVal = 0; // These are failures/unanswered, map to 0
 
             insert.run(botId, tsVal, sessionVal, chatUrlVal, answeredVal);

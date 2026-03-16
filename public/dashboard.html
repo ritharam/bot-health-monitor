@@ -339,6 +339,15 @@
                 </svg>
                 Bot Downtime
             </div>
+            <div class="nav-item" onclick="switchView('unresponsive')">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z">
+                    </path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Bot Unresponsive
+            </div>
             <div class="nav-item" onclick="switchView('apis')">
                 <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
                     <polyline points="16 18 22 12 16 6"></polyline>
@@ -372,6 +381,7 @@
                 <option value="x1749095342235">Kent RO - Agentic AI Bot</option>
                 <option value="x1674052117168">Decathalon Chat</option>
                 <option value="x1752564834557">Swiggy Bot</option>
+                <option value="x1751972733090">JFL Dominos</option>
             </select>
         </div>
 
@@ -426,6 +436,7 @@
     <script>
         const CATEGORIES = [
             { id: 'uptime', label: 'Bot Downtime', desc: 'Tracking bot response delays exceeding 5 minutes.' },
+            { id: 'unresponsive', label: 'Bot Unresponsive', desc: 'Sessions where the last message was from the user and the bot did not reply.' },
             { id: 'apis', label: 'APIs', desc: 'External API failure alerts and codes.' },
             { id: 'kb', label: 'Knowledge Base', desc: 'KB failure analysis and unanswered queries.' },
             { id: 'llm', label: 'LLM Performance', desc: 'LLM response failures and quality metrics.' }
@@ -493,6 +504,13 @@
                 document.getElementById('detail-desc').innerText = cat.desc;
                 indicator.innerText = `Dashboard / ${cat.label}`;
                 await loadApiAlerts();
+            } else if (viewId === 'unresponsive') {
+                document.getElementById('view-detail').classList.add('active');
+                const cat = CATEGORIES.find(c => c.id === viewId);
+                document.getElementById('detail-title').innerText = cat.label;
+                document.getElementById('detail-desc').innerText = cat.desc;
+                indicator.innerText = `Dashboard / ${cat.label}`;
+                await loadUnresponsiveMetrics();
             } else if (viewId === 'llm') {
                 document.getElementById('view-detail').classList.add('active');
                 const cat = CATEGORIES.find(c => c.id === viewId);
@@ -518,6 +536,18 @@
             }
         }
 
+        function displayTableError(errorMsg) {
+            const tbody = document.getElementById('table-body');
+            const head = document.getElementById('table-head');
+            // Estimate column count based on current view or just use a safe large number
+            const colCount = head.children.length || 5;
+            tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 40px; color: var(--red);">
+                <div style="font-weight: 600; font-size: 1.1em; margin-bottom: 8px;">Fetch Error</div>
+                <div style="opacity: 0.8; font-family: monospace; font-size: 0.9em;">${errorMsg}</div>
+                <div style="margin-top: 16px; font-size: 0.85em; color: var(--text-mute);">Please verify the Bot ID and API Key in the backend configuration.</div>
+            </td></tr>`;
+        }
+
         async function loadApiAlerts() {
             const botId = document.getElementById('bot-selector').value;
             const status = document.getElementById('sync-status');
@@ -527,35 +557,28 @@
                 const response = await fetch(`/api/alerts?botId=${botId}`);
                 const data = await response.json();
 
-                if (data.error) showFetchError(data.error);
-
-                renderApiTable(data.alerts || []);
+                if (data.error) {
+                    displayTableError(data.error);
+                } else {
+                    renderApiTable(data.alerts || []);
+                }
                 status.innerText = 'Live Sync Active';
                 document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             } catch (error) {
                 console.error('Error fetching API alerts:', error);
                 status.innerText = 'Sync Error';
-                showFetchError('Failed to connect to monitoring server.');
             }
         }
 
-        function showFetchError(errMsg) {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px;">
-                <div style="background: rgba(255, 59, 48, 0.1); color: var(--red); padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 600;">
-                    ⚠️ Fetch Error: ${errMsg}
-                </div>
-            </td></tr>` + tbody.innerHTML;
-        }
 
         function renderApiTable(alerts) {
             const head = document.getElementById('table-head');
-            head.innerHTML = '<th>Timestamp</th><th>Session ID</th><th>Status Code</th><th>Chat URL</th>';
+            head.innerHTML = '<th>Timestamp</th><th>API Name</th><th>Session ID</th><th>Status Code</th><th>Chat URL</th>';
 
             const tbody = document.getElementById('table-body');
             if (alerts.length === 0) {
                 if (!tbody.innerHTML.includes('Fetch Error')) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-mute);">No records found in the last 31 days.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-mute);">No records found in the last 31 days.</td></tr>';
                 }
                 return;
             }
@@ -569,6 +592,7 @@
                 return `
                     <tr>
                         <td class="mono">${dateStr}</td>
+                        <td style="font-weight: 600; color: var(--text-bright);">${a.apiName || 'N/A'}</td>
                         <td class="mono">${a.sessionId || 'N/A'}</td>
                         <td><span class="status-pill ${statusClass}">${a.statusCode}</span></td>
                         <td><a href="${a.chatURL}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
@@ -602,13 +626,20 @@
 
         async function loadDowntimeMetrics() {
             const botId = document.getElementById('bot-selector').value;
-            const res = await fetch(`/api/downtime-metrics?botId=${botId}`);
-            const data = await res.json();
+            const status = document.getElementById('sync-status');
+            try {
+                const res = await fetch(`/api/downtime-metrics?botId=${botId}`);
+                const data = await res.json();
 
-            const head = document.getElementById('table-head');
-            head.innerHTML = '<th>Session ID</th><th>Delay Duration</th><th>Chat URL</th>';
-
-            renderDowntimeTable(data);
+                if (data.error) {
+                    displayTableError(data.error);
+                } else {
+                    renderDowntimeTable(data.metrics || []);
+                }
+                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function renderDowntimeTable(metrics) {
@@ -635,7 +666,7 @@
                     <tr>
                         <td class="mono">${m.sessionId || 'N/A'}</td>
                         <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
-                        <td><a href="${m.chaturl}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
+                        <td><a href="${m.chatURL || m.chaturl}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
                     </tr>
                 `;
             }).join('');
@@ -667,13 +698,20 @@
 
         async function loadLlmMetrics() {
             const botId = document.getElementById('bot-selector').value;
-            const res = await fetch(`/api/llm-metrics?botId=${botId}`);
-            const data = await res.json();
+            const status = document.getElementById('sync-status');
+            try {
+                const res = await fetch(`/api/llm-metrics?botId=${botId}`);
+                const data = await res.json();
 
-            const head = document.getElementById('table-head');
-            head.innerHTML = '<th>Timestamp</th><th>Session ID</th><th>Status</th>';
-
-            renderLlmTable(data);
+                if (data.error) {
+                    displayTableError(data.error);
+                } else {
+                    renderLlmTable(data.metrics || []);
+                }
+                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function renderLlmTable(metrics) {
@@ -681,7 +719,7 @@
             const failures = metrics.filter(m => m.success === 0 || m.success === false || m.success === '0');
 
             if (failures.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px; color: var(--text-mute);">No LLM failures found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-mute);">No LLM failures found.</td></tr>';
                 initChart('detail-chart', 'line', [0, 0, 0, 0, 0], ['N/A', 'N/A', 'N/A', 'N/A', 'N/A'], 'var(--accent)');
                 return;
             }
@@ -696,6 +734,7 @@
                         <td class="mono">${dateStr}</td>
                         <td class="mono">${m.sessionId || 'N/A'}</td>
                         <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+                        <td><a href="${m.chatURL || m.chaturl}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
                     </tr>
                 `;
             }).join('');
@@ -715,15 +754,86 @@
             initChart('detail-chart', 'line', dataPoints.length > 0 ? dataPoints : [0, 0, 0, 0, 0], labels, 'var(--accent)');
         }
 
+        async function loadUnresponsiveMetrics() {
+            const botId = document.getElementById('bot-selector').value;
+            const status = document.getElementById('sync-status');
+            status.innerText = 'Syncing Unresponsive sessions...';
+
+            try {
+                const response = await fetch(`/api/unresponsive-metrics?botId=${botId}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    displayTableError(data.error);
+                } else {
+                    renderUnresponsiveTable(data.records || []);
+                }
+                status.innerText = 'Live Sync Active';
+                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (error) {
+                console.error('Error fetching Unresponsive metrics:', error);
+                status.innerText = 'Sync Error';
+            }
+        }
+
+        function renderUnresponsiveTable(records) {
+            const head = document.getElementById('table-head');
+            head.innerHTML = '<th>Timestamp</th><th>Session ID</th><th>Last Message (User)</th><th>Status</th><th>Chat URL</th>';
+
+            const tbody = document.getElementById('table-body');
+            if (records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-mute);">No unresponsive sessions found recently.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = records.map(r => {
+                const ts = parseFloat(r.timestamp) || new Date(r.timestamp).getTime();
+                const dateStr = !isNaN(ts) ? new Date(ts).toLocaleString() : 'N/A';
+
+                return `
+                    <tr>
+                        <td class="mono">${dateStr}</td>
+                        <td class="mono">${r.sessionId || 'N/A'}</td>
+                        <td style="color: var(--text-bright); font-style: italic;">"${r.lastMessage}"</td>
+                        <td><span class="status-pill critical">Bot Unresponsive</span></td>
+                        <td><a href="${r.chatURL}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Optional: Render a simple trend chart for unresponsiveness
+            const counts = {};
+            records.forEach(r => {
+                const ts = parseFloat(r.timestamp) || new Date(r.timestamp).getTime();
+                if (!isNaN(ts)) {
+                    const hourDate = new Date(ts);
+                    hourDate.setMinutes(0, 0, 0);
+                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
+                    counts[key] = (counts[key] || 0) + 1;
+                }
+            });
+
+            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
+            const chartData = labels.map(l => counts[l]);
+            initChart('detail-chart', 'bar', chartData.length > 0 ? chartData : [0, 0, 0], labels, 'var(--critical)');
+        }
+
         async function loadKbMetrics() {
             const botId = document.getElementById('bot-selector').value;
-            const res = await fetch(`/api/kb-metrics?botId=${botId}`);
-            const data = await res.json();
+            const status = document.getElementById('sync-status');
+            try {
+                const res = await fetch(`/api/kb-metrics?botId=${botId}`);
+                const data = await res.json();
 
-            const head = document.getElementById('table-head');
-            head.innerHTML = '<th>Timestamp</th><th>Session ID</th><th>Answered Status</th><th>Chat URL</th>';
-
-            renderKbTable(data);
+                if (data.error) {
+                    displayTableError(data.error);
+                } else {
+                    renderKbTable(data.metrics || []);
+                }
+                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function renderKbTable(metrics) {
@@ -746,7 +856,7 @@
                         <td class="mono">${dateStr}</td>
                         <td class="mono">${m.sessionId || 'N/A'}</td>
                         <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
-                        <td><a href="${m.chaturl}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
+                        <td><a href="${m.chatURL || m.chaturl}" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">View Transcript ↗</a></td>
                     </tr>
                 `;
             }).join('');
@@ -790,6 +900,8 @@
                 await loadKbMetrics();
             } else if (currentView === 'apis') {
                 await loadApiAlerts();
+            } else if (currentView === 'unresponsive') {
+                await loadUnresponsiveMetrics();
             }
             document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
@@ -800,6 +912,7 @@
 
             const cards = [
                 { id: 'uptime', label: 'High Delays (>5m)', val: summary.uptime || 0, status: (summary.uptime > 0 ? 'critical' : 'healthy') },
+                { id: 'unresponsive', label: 'Bot Unresponsive', val: summary.unresponsive || 0, status: (summary.unresponsive > 0 ? 'critical' : 'healthy') },
                 { id: 'apis', label: 'API Failures', val: summary.apis || 0, status: (summary.apis > 0 ? 'critical' : 'healthy') },
                 { id: 'kb', label: 'Unanswered (KB)', val: summary.kb || 0, status: (summary.kb > 0 ? 'critical' : 'healthy') },
                 { id: 'llm', label: 'LLM Failures', val: summary.llm || 0, status: (summary.llm > 0 ? 'critical' : 'healthy') }

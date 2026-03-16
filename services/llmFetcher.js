@@ -1,6 +1,6 @@
 export async function fetchLlmMetrics(botId, apiKey, db) {
     console.log(`Fetching LLM metrics for bot: ${botId}...`);
-    const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}&x-api-key=${apiKey}`;
+    const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}`;
 
     const payload = {
         type: "json",
@@ -47,15 +47,16 @@ export async function fetchLlmMetrics(botId, apiKey, db) {
         const records = rawRecords.filter(r => r.success === false || r.success === "false");
 
         const insert = db.prepare(`
-            INSERT OR IGNORE INTO llm_metrics (botId, timestamp, sessionId, success)
-            VALUES (?, ?, ?, ?)
+            INSERT OR IGNORE INTO llm_metrics (botId, timestamp, sessionId, chatURL, success)
+            VALUES (?, ?, ?, ?, ?)
         `);
 
         for (const record of records) {
             const tsVal = record.timestamp || new Date().toISOString();
             const sessionVal = record.sessionId || record.uid;
+            const chatUrlVal = record.chatURL || record.chaturl || `https://cloud.yellow.ai/bot/${botId}/analytics/chat-history?sid=${sessionVal}`;
             const successVal = 0; // These are failures, map to 0 for red status on dashboard
-            insert.run(botId, tsVal, sessionVal, successVal);
+            insert.run(botId, tsVal, sessionVal, chatUrlVal, successVal);
         }
 
         console.log(`Saved ${records.length} LLM failures for ${botId}`);

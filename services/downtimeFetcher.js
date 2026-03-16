@@ -1,6 +1,6 @@
 export async function fetchDowntimeMetrics(botId, apiKey, db) {
     console.log(`Fetching Bot Downtime metrics for bot: ${botId}...`);
-    const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}&x-api-key=${apiKey}`;
+    const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}`;
 
     const payload = {
         type: "json",
@@ -88,14 +88,14 @@ export async function fetchDowntimeMetrics(botId, apiKey, db) {
         }
 
         const insert = db.prepare(`
-            INSERT OR IGNORE INTO bot_downtime (botId, timestamp, sessionId, chaturl, has_delay, delay_seconds)
+            INSERT OR IGNORE INTO bot_downtime (botId, timestamp, sessionId, chatURL, has_delay, delay_seconds)
             VALUES (?, ?, ?, ?, ?, ?)
         `);
 
         for (const record of delayedRecords) {
             const tsVal = record.timestamp || record.__time || new Date().toISOString();
             const sessionVal = record.sessionId || record.sid || record.uid;
-            const chatUrlVal = record.chaturl || `https://cloud.yellow.ai/bot/${botId}/chat-history?sid=${sessionVal}`;
+            const chatUrlVal = record.chatURL || `https://cloud.yellow.ai/bot/${botId}/analytics/chat-history?sid=${sessionVal}`;
             const hasDelay = 1;
             const delaySecs = record.delay_seconds || 0;
 
