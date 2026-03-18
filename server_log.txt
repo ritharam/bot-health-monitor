@@ -1,0 +1,315 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+Bot monitoring initialized for: Kent RO, Decathalon, Swiggy, JFL Dominos
+Fetching alerts for bot: x1749095342235...
+Fetching LLM metrics for bot: x1749095342235...
+Fetching KB metrics for bot: x1749095342235...
+Server running at http://localhost:3001
+API response - Success: true, Message: Success, RawRecords: 500, Failures: 13
+Saved 13 failures for x1749095342235
+Saved 0 LLM failures for x1749095342235
+Saved 0 KB failures for x1749095342235
+Fetching Bot Downtime metrics for bot: x1749095342235...
+--- SAMPLE MESSAGE RECORD (keys + values) ---
+  __time: 1773729000000
+  city: null
+  country: "India"
+  device: null
+  ip: null
+  messageType: "USER"
+  lastMessageType: "BOT"
+  identificationStatus: "IDENTIFIED"
+  platform: null
+  region: null
+  source: "whatsapp"
+  uid: "919950153610"
+  sessionId: "69b8f46e4b811e000131e938"
+  session_sum: 24.867
+  customId1: null
+  customId2: null
+  utm_campaign: null
+  utm_medium: null
+  utm_source: null
+  language: "en"
+  bid: null
+  interactionType: "message"
+  count: 1
+  journey: null
+  step: null
+  chatURL: "https://cloud.yellow.ai/public/messages/a9c98547d493b6a9b0a2958bd67223c37e17a4fd6b0e4f365498d3ae722d78c2383317c721c6/69b8f46e4b811e000131e938"
+--- END SAMPLE ---
+Processed 500 messages, found 0 delays for x1749095342235
+Fetching Bot Unresponsive metrics for bot: x1749095342235...
+Processed 500 messages, found 0 unresponsive sessions for x1749095342235
+Fetching alerts for bot: x1674052117168...
+Fetching LLM metrics for bot: x1674052117168...
+Fetching KB metrics for bot: x1674052117168...
+API response - Success: true, Message: Success, RawRecords: 500, Failures: 18
+Saved 18 failures for x1674052117168
+Saved 0 LLM failures for x1674052117168
+Saved 0 KB failures for x1674052117168
+Fetching Bot Downtime metrics for bot: x1674052117168...
+--- SAMPLE MESSAGE RECORD (keys + values) ---
+  __time: 1773729000000
+  city: "Gokarna"
+  country: "India"
+  device: "Mobile"
+  ip: "103.50.21.97"
+  messageType: "BOT"
+  lastMessageType: "BOT"
+  identificationStatus: null
+  platform: "iPhone"
+  region: "Karnataka"
+  source: "yellowmessenger"
+  uid: "950628147275284726259022371"
+  sessionId: "69b7cff0c5d0310001bc4686"
+  session_sum: 1.075
+  customId1: null
+  customId2: null
+  utm_campaign: null
+  utm_medium: null
+  utm_source: null
+  language: "en"
+  bid: null
+  interactionType: "welcome"
+  count: 1
+  journey: "main-menu_wtrcym"
+  step: "d52866f9da162dde"
+  chatURL: "https://cloud.yellow.ai/public/messages/a9c98444d993baaeb2a79088d37f23c37e13adf26c064f37509cd5ab66333b9d6b7156936886f7eba662215fc9522075580de463f91532c341b7caf2/69b7cff0c5d0310001bc4686"
+--- END SAMPLE ---
+Processed 500 messages, found 0 delays for x1674052117168
+Fetching Bot Unresponsive metrics for bot: x1674052117168...
+Processed 500 messages, found 0 unresponsive sessions for x1674052117168
+Fetching alerts for bot: x1752564834557...
+Fetching LLM metrics for bot: x1752564834557...
+Fetching KB metrics for bot: x1752564834557...
+Saved 0 LLM failures for x1752564834557
+API response - Success: true, Message: Success, RawRecords: 500, Failures: 14
+Saved 14 failures for x1752564834557
+Saved 0 KB failures for x1752564834557
+Fetching Bot Downtime metrics for bot: x1752564834557...
+--- SAMPLE MESSAGE RECORD (keys + values) ---
+  __time: 1773728640000
+  city: "Delhi"
+  country: "India"
+  device: "Desktop"
+  ip: "2401:4900:c935:b806:45d4:b126:ebec:f622"
+  messageType: "BOT"
+  lastMessageType: "BOT"
+  identificationStatus: null
+  platform: "Apple Mac"
+  region: "Delhi"
+  source: "yellowmessenger"
+  uid: "6422533239109281888107333412"
+  sessionId: "69b8d73630dbd0000114ef9f"
+  session_sum: 0
+  customId1: null
+  customId2: null
+  utm_campaign: null
+  utm_medium: null
+  utm_source: null
+  language: "en"
+  bid: null
+  interactionType: null
+  count: 1
+  journey: ""
+  step: null
+  chatURL: "https://cloud.yellow.ai/public/messages/a9c98546df96b9a8bba5938cd07023c37112aff66b0d4d315497d3ae6d39379b617f5c976181f6eaa661214bc90d3c7c580efc79f10332d54abec8e51e/69b8d73630dbd0000114ef9f"
+--- END SAMPLE ---
+Processed 500 messages, found 1 delays for x1752564834557
+Fetching Bot Unresponsive metrics for bot: x1752564834557...
+Processed 500 messages, found 0 unresponsive sessions for x1752564834557
+Fetching alerts for bot: x1751972733090...
+Fetching LLM metrics for bot: x1751972733090...
+Fetching KB metrics for bot: x1751972733090...
+Saved 0 LLM failures for x1751972733090
+Saved 0 KB failures for x1751972733090
+Fetching Bot Downtime metrics for bot: x1751972733090...
+API response - Success: true, Message: Success, RawRecords: 500, Failures: 42
+Saved 42 failures for x1751972733090
+--- SAMPLE MESSAGE RECORD (keys + values) ---
+  __time: 1773729000000
+  city: "Delhi"
+  country: "India"
+  device: "Mobile"
+  ip: "2401:4900:1c6a:1dec:c5a8:f306:7ec5:bec3"
+  messageType: "USER"
+  lastMessageType: "BOT"
+  identificationStatus: "IDENTIFIED"
+  platform: "android-sdk"
+  region: "Delhi"
+  source: "yellowmessenger"
+  uid: "zjpek88o6a1772368612705"
+  sessionId: "69b8f1ddcfeb130001183622"
+  session_sum: 6.108
+  customId1: null
+  customId2: null
+  utm_campaign: null
+  utm_medium: null
+  utm_source: null
+  language: "en"
+  bid: null
+  interactionType: "quick-replies"
+  count: 1
+  journey: null
+  step: null
+  chatURL: "https://cloud.yellow.ai/public/messages/a9c98546dc9ab8aeb4a59489dc7723c33d4ceda13506466c51cfd3a963393c9c617155946686f0ffb32c7515834432745111e06bf20124d4/69b8f1ddcfeb130001183622"
+--- END SAMPLE ---
+Processed 500 messages, found 0 delays for x1751972733090
+Fetching Bot Unresponsive metrics for bot: x1751972733090...
+Processed 500 messages, found 0 unresponsive sessions for x1751972733090
+Fetching alerts for bot: x1749095342235...
+Fetching LLM metrics for bot: x1749095342235...
+Fetching KB metrics for bot: x1749095342235...
+API response - Success: true, Message: Success, RawRecords: 500, Failures: 13
+Saved 13 failures for x1749095342235
+Saved 0 LLM failures for x1749095342235
+Saved 0 KB failures for x1749095342235
+Fetching Bot Downtime metrics for bot: x1749095342235...
+--- SAMPLE MESSAGE RECORD (keys + values) ---
+  __time: 1773729060000
+  city: null
+  country: "India"
+  device: null
+  ip: null
+  messageType: "USER"
+  lastMessageType: "BOT"
+  identificationStatus: "IDENTIFIED"
+  platform: null
+  region: null
+  source: "whatsapp"
+  uid: "919887371919"
+  sessionId: "69b8ec4273b9fb00011bb773"
+  session_sum: 74.994
+  customId1: null
+  customId2: null
+  utm_campaign: null
+  utm_medium: null
+  utm_source: null
+  language: "en"
+  bid: null
+  interactionType: "message"
+  count: 1
+  journey: null
+  step: null
+  chatURL: "https://cloud.yellow.ai/public/messages/a9c98547d493b6a9b0a2958bd67223c37e17a4fc66094d345697d3a7722d78c2383317c721c6/69b8ec4273b9fb00011bb773"
+--- END SAMPLE ---
+Processed 500 messages, found 0 delays for x1749095342235
+Fetching Bot Unresponsive metrics for bot: x1749095342235...
+Processed 500 messages, found 0 unresponsive sessions for x1749095342235
+Fetching alerts for bot: x1674052117168...
+Fetching LLM metrics for bot: x1674052117168...
+Fetching KB metrics for bot: x1674052117168...
+API response - Success: true, Message: Success, RawRecords: 500, Failures: 18
+Saved 18 failures for x1674052117168
+Saved 0 LLM failures for x1674052117168
+Saved 0 KB failures for x1674052117168
+Fetching Bot Downtime metrics for bot: x1674052117168...
+--- SAMPLE MESSAGE RECORD (keys + values) ---
+  __time: 1773729060000
+  city: "Delhi"
+  country: "India"
+  device: "Mobile"
+  ip: "2401:4900:577c:b435:f0c8:1159:d5b7:a3fe"
+  messageType: "BOT"
+  lastMessageType: "BOT"
+  identificationStatus: null
+  platform: "iPhone"
+  region: "Delhi"
+  source: "yellowmessenger"
+  uid: "9905593045571949536175629122"
+  sessionId: "69b840c5886d150001284f78"
+  session_sum: 1.072
+  customId1: null
+  customId2: null
+  utm_campaign: null
+  utm_medium: null
+  utm_source: null
+  language: "en"
+  bid: null
+  interactionType: "welcome"
+  count: 1
+  journey: "main-menu_wtrcym"
+  step: "d52866f9da162dde"
+  chatURL: "https://cloud.yellow.ai/public/messages/a9c98444d993baaeb2a79088d37f23c37e1fadf16b074d33539bd7a965323b936c7452976683f3ebac64224bc90d3c7c580efc79f10332d54abec8e51e/69b840c5886d150001284f78"
+--- END SAMPLE ---
+Processed 500 messages, found 0 delays for x1674052117168
+Fetching Bot Unresponsive metrics for bot: x1674052117168...
+Processed 500 messages, found 0 unresponsive sessions for x1674052117168
+Fetching alerts for bot: x1752564834557...
+Fetching LLM metrics for bot: x1752564834557...
+Fetching KB metrics for bot: x1752564834557...
+API response - Success: true, Message: Success, RawRecords: 500, Failures: 14
+Saved 14 failures for x1752564834557
+Saved 0 LLM failures for x1752564834557
+Saved 0 KB failures for x1752564834557
+Fetching Bot Downtime metrics for bot: x1752564834557...
+--- SAMPLE MESSAGE RECORD (keys + values) ---
+  __time: 1773728640000
+  city: "Delhi"
+  country: "India"
+  device: "Desktop"
+  ip: "2401:4900:c935:b806:45d4:b126:ebec:f622"
+  messageType: "BOT"
+  lastMessageType: "BOT"
+  identificationStatus: null
+  platform: "Apple Mac"
+  region: "Delhi"
+  source: "yellowmessenger"
+  uid: "6422533239109281888107333412"
+  sessionId: "69b8d73630dbd0000114ef9f"
+  session_sum: 0
+  customId1: null
+  customId2: null
+  utm_campaign: null
+  utm_medium: null
+  utm_source: null
+  language: "en"
+  bid: null
+  interactionType: null
+  count: 1
+  journey: ""
+  step: null
+  chatURL: "https://cloud.yellow.ai/public/messages/a9c98546df96b9a8bba5938cd07023c37112aff66b0d4d315497d3ae6d39379b617f5c976181f6eaa661214bc90d3c7c580efc79f10332d54abec8e51e/69b8d73630dbd0000114ef9f"
+--- END SAMPLE ---
+Processed 500 messages, found 1 delays for x1752564834557
+Fetching Bot Unresponsive metrics for bot: x1752564834557...
+Processed 500 messages, found 0 unresponsive sessions for x1752564834557
+Fetching alerts for bot: x1751972733090...
+Fetching LLM metrics for bot: x1751972733090...
+Fetching KB metrics for bot: x1751972733090...
+API response - Success: true, Message: Success, RawRecords: 500, Failures: 42
+Saved 42 failures for x1751972733090
+Saved 0 LLM failures for x1751972733090
+Saved 0 KB failures for x1751972733090
+Fetching Bot Downtime metrics for bot: x1751972733090...
+--- SAMPLE MESSAGE RECORD (keys + values) ---
+  __time: 1773729060000
+  city: "Delhi"
+  country: "India"
+  device: "Mobile"
+  ip: "2401:4900:1c6a:1dec:c5a8:f306:7ec5:bec3"
+  messageType: "USER"
+  lastMessageType: "BOT"
+  identificationStatus: "IDENTIFIED"
+  platform: "android-sdk"
+  region: "Delhi"
+  source: "yellowmessenger"
+  uid: "zjpek88o6a1772368612705"
+  sessionId: "69b8f1ddcfeb130001183622"
+  session_sum: 25.892
+  customId1: null
+  customId2: null
+  utm_campaign: null
+  utm_medium: null
+  utm_source: null
+  language: "en"
+  bid: null
+  interactionType: "quick-replies"
+  count: 1
+  journey: null
+  step: null
+  chatURL: "https://cloud.yellow.ai/public/messages/a9c98546dc9ab8aeb4a59489dc7723c33d4ceda13506466c51cfd3a963393c9c617155946686f0ffb32c7515834432745111e06bf20124d4/69b8f1ddcfeb130001183622"
+--- END SAMPLE ---
+Processed 500 messages, found 0 delays for x1751972733090
+Fetching Bot Unresponsive metrics for bot: x1751972733090...
+Processed 500 messages, found 0 unresponsive sessions for x1751972733090

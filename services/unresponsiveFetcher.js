@@ -12,86 +12,102 @@ export async function fetchUnresponsiveMetrics(botId, apiKey, db) {
                     comparator: "previous",
                     operands: {
                         _1: "__time",
-                        _2: { count: 1, type: "day", includeCurrent: true }
+                        _2: { count: 24, type: "hour", includeCurrent: true }
                     }
                 }
             ]
         },
-        limit: 1000,
-        offset: 0,
+        limit: 10000,
         sourceType: "druid",
         dataSource: "messages",
         datasetType: "default"
     };
 
     try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
-                'content-type': 'application/json',
-                'x-api-key': apiKey,
-                'origin': 'https://cloud.yellow.ai',
-                'platform': 'cloud',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
-                'priority': 'u=1, i'
-            },
-            body: JSON.stringify(payload)
-        });
+        let allRecords = [];
+        let currentOffset = 0;
+        const batchLimit = 10000;
+        const maxRecords = 300000;
 
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-        const data = await response.json();
-        const rawRecords = data.data?.records || data.data?.rows || [];
-
-        if (rawRecords.length === 0) {
-            console.log("No message records found for unresponsiveness check.");
-            return;
-        }
-
-        // Group by sessionId
-        const sessions = {};
-        for (const r of rawRecords) {
-            const sid = r.sessionId || r.sid || r.uid;
-            if (!sid) continue;
-            if (!sessions[sid]) sessions[sid] = [];
-            sessions[sid].push(r);
-        }
-
-        const unresponsiveRecords = [];
-
-        for (const sid in sessions) {
-            // Sort by timestamp descending to find the LAST message
-            sessions[sid].sort((a, b) => {
-                const tsA = new Date(a.timestamp || a.__time).getTime();
-                const tsB = new Date(b.timestamp || b.__time).getTime();
-                return tsB - tsA;
+        while (allRecords.length < maxRecords) {
+            const batchPayload = { ...payload, offset: currentOffset, limit: batchLimit };
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'content-type': 'application/json',
+                    'x-api-key': apiKey,
+                    'origin': 'https://cloud.yellow.ai',
+                    'platform': 'cloud',
+                    'user-agent': 'Mozilla/5.0'
+                },
+                body: JSON.stringify(batchPayload)
             });
 
-            const lastMessage = sessions[sid][0];
-            // Check if lastMessageType is "user" (or similar case-insensitive)
-            if (lastMessage.lastMessageType?.toLowerCase() === 'user' || lastMessage.senderType?.toLowerCase() === 'user') {
-                unresponsiveRecords.push(lastMessage);
+            if (!response.ok) {
+                if (allRecords.length > 0) break;
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const records = data.data?.records || data.data?.rows || [];
+            allRecords = allRecords.concat(records);
+
+            if (records.length < batchLimit) break;
+            currentOffset += batchLimit;
+        }
+
+        if (allRecords.length === 0) {
+            console.log(`[${botId}] No message records found.`);
+            return 0;
+        }
+
+        const sessions = {};
+        allRecords.forEach(r => {
+            const sid = r.sessionId || r.sid || r.uid;
+            if (sid) {
+                if (!sessions[sid]) sessions[sid] = [];
+                sessions[sid].push(r);
+            }
+        });
+
+        const unresponsiveSessions = [];
+        for (const sid in sessions) {
+            const records = sessions[sid]
+                .filter(r => (r.messageType || r.senderType || '').toLowerCase() !== 'notification')
+                .sort((a, b) => new Date(a.timestamp || a.__time) - new Date(b.timestamp || b.__time));
+
+            if (records.length === 0) continue;
+
+            const last = records[records.length - 1];
+            if (last && (last.messageType || last.senderType)?.toLowerCase() === 'user') {
+                const ageMins = (Date.now() - new Date(last.timestamp || last.__time).getTime()) / (1000 * 60);
+                // 30-minute buffer: Skip if latest activity is within the last 30 minutes
+                if (ageMins > 30) {
+                    unresponsiveSessions.push(last);
+                }
             }
         }
 
+        db.prepare(`DELETE FROM bot_unresponsive WHERE botId = ?`).run(botId);
         const insert = db.prepare(`
-            INSERT OR REPLACE INTO bot_unresponsive (botId, timestamp, sessionId, lastMessage, chatURL)
+            INSERT INTO bot_unresponsive (botId, timestamp, sessionId, lastMessage, chatURL)
             VALUES (?, ?, ?, ?, ?)
         `);
 
-        for (const record of unresponsiveRecords) {
+        for (const record of unresponsiveSessions) {
             const tsVal = record.timestamp || record.__time || new Date().toISOString();
             const sessionVal = record.sessionId || record.sid || record.uid;
-            const lastMsgText = record.message || record.lastMessageText || 'User Message';
+            const msgContent = record.message || record.text || record.msg || 'User message';
             const chatUrlVal = record.chatURL || `https://cloud.yellow.ai/bot/${botId}/analytics/chat-history?sid=${sessionVal}`;
 
-            insert.run(botId, tsVal, sessionVal, lastMsgText, chatUrlVal);
+            insert.run(botId, tsVal, sessionVal, msgContent, chatUrlVal);
         }
 
-        console.log(`Processed ${rawRecords.length} messages, found ${unresponsiveRecords.length} unresponsive sessions for ${botId}`);
+        console.log(`[${botId}] Processed ${allRecords.length} records, found ${unresponsiveSessions.length} unresponsive.`);
+        return unresponsiveSessions.length;
     } catch (error) {
         console.error(`[${botId}] Error fetching Unresponsive metrics: ${error.message}`);
+        throw error;
     }
 }

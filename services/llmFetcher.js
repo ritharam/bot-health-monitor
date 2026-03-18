@@ -12,55 +12,70 @@ export async function fetchLlmMetrics(botId, apiKey, db) {
                     comparator: "previous",
                     operands: {
                         _1: "timestamp",
-                        _2: { count: 31, type: "day", includeCurrent: true }
+                        _2: { count: 24, type: "hour", includeCurrent: true }
                     }
                 }
             ]
         },
-        limit: 1000,
-        offset: 0,
+        limit: 10000,
         sourceType: "elasticsearch",
         dataSource: "llm-api-usage-metrics",
         datasetType: "default"
     };
 
     try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'accept': 'application/json',
-                'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
-                'content-type': 'application/json',
-                'x-api-key': apiKey,
-                'origin': 'https://cloud.yellow.ai',
-                'platform': 'cloud',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36',
-                'priority': 'u=1, i'
-            },
-            body: JSON.stringify(payload)
-        });
+        let allRecords = [];
+        let currentOffset = 0;
+        const batchLimit = 10000;
+        const maxRecords = 300000;
 
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        while (allRecords.length < maxRecords) {
+            const batchPayload = { ...payload, offset: currentOffset, limit: batchLimit };
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'content-type': 'application/json',
+                    'x-api-key': apiKey,
+                    'origin': 'https://cloud.yellow.ai',
+                    'platform': 'cloud',
+                    'user-agent': 'Mozilla/5.0'
+                },
+                body: JSON.stringify(batchPayload)
+            });
 
-        const data = await response.json();
-        const rawRecords = data.data?.records || data.data?.rows || [];
-        const records = rawRecords.filter(r => r.success === false || r.success === "false");
+            if (!response.ok) {
+                if (allRecords.length > 0) break;
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const records = data.data?.records || data.data?.rows || [];
+            allRecords = allRecords.concat(records);
+
+            if (records.length < batchLimit) break;
+            currentOffset += batchLimit;
+        }
+
+        const failures = allRecords.filter(r => r.success === false || r.success === "false");
 
         const insert = db.prepare(`
             INSERT OR IGNORE INTO llm_metrics (botId, timestamp, sessionId, chatURL, success)
             VALUES (?, ?, ?, ?, ?)
         `);
 
-        for (const record of records) {
+        for (const record of failures) {
             const tsVal = record.timestamp || new Date().toISOString();
             const sessionVal = record.sessionId || record.uid;
             const chatUrlVal = record.chatURL || record.chaturl || `https://cloud.yellow.ai/bot/${botId}/analytics/chat-history?sid=${sessionVal}`;
-            const successVal = 0; // These are failures, map to 0 for red status on dashboard
+            const successVal = 0; // Failure
             insert.run(botId, tsVal, sessionVal, chatUrlVal, successVal);
         }
 
-        console.log(`Saved ${records.length} LLM failures for ${botId}`);
+        console.log(`[${botId}] Fetched ${allRecords.length} LLM records, found ${failures.length} failures.`);
+        return failures.length;
     } catch (error) {
         console.error(`[${botId}] Error fetching LLM metrics: ${error.message}`);
+        throw error;
     }
 }

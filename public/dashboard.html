@@ -18,6 +18,7 @@
             --green: #34C759;
             --amber: #FF9500;
             --red: #FF3B30;
+            --blue: #007AFF;
             --border: rgba(0, 0, 0, 0.06);
             --sidebar-width: 260px;
         }
@@ -348,27 +349,43 @@
                 </svg>
                 Bot Unresponsive
             </div>
-            <div class="nav-item" onclick="switchView('apis')">
+            <div class="nav-item" onclick="switchView('apis')" id="nav-apis">
                 <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
                     <polyline points="16 18 22 12 16 6"></polyline>
                     <polyline points="8 6 2 12 8 18"></polyline>
                 </svg>
                 APIs
             </div>
-            <div class="nav-item" onclick="switchView('kb')">
+            <div class="nav-item" onclick="switchView('custom')" id="nav-custom">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                Custom Alerts
+            </div>
+            <div class="nav-item" onclick="switchView('kb')" id="nav-kb">
                 <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                 </svg>
                 Knowledge Base
             </div>
-            <div class="nav-item" onclick="switchView('llm')">
+            <div class="nav-item" onclick="switchView('llm')" id="nav-llm">
                 <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
                     <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
                     <path d="M12 12v10"></path>
                     <path d="M12 12L2.69 7"></path>
                 </svg>
                 LLM Performance
+            </div>
+            <div class="nav-item" onclick="switchView('archives')" id="nav-archives">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Archived History
             </div>
         </nav>
     </aside>
@@ -389,7 +406,7 @@
         <div id="view-overview" class="view active">
             <div class="view-title">
                 <h2>System Health</h2>
-                <p>Aggregated status across all monitored categories.</p>
+                <p>Aggregated status across all monitored categories for past 24 hours.</p>
             </div>
             <div class="metrics-grid" id="overview-metrics">
                 <!-- Injected -->
@@ -406,15 +423,6 @@
                 <p id="detail-desc">Detailed analysis and recent incidents.</p>
             </div>
             <div class="detail-layout">
-                <div class="chart-section" id="detail-charts"
-                    style="display: grid; grid-template-columns: 1fr; gap: 24px;">
-                    <div class="chart-container">
-                        <canvas id="detail-chart"></canvas>
-                    </div>
-                    <div class="chart-container" id="distribution-chart-container" style="display: none;">
-                        <canvas id="distribution-chart"></canvas>
-                    </div>
-                </div>
                 <div class="table-card">
                     <table id="detail-table">
                         <thead>
@@ -426,14 +434,135 @@
             </div>
         </div>
 
+        <!-- Custom Alerts View -->
+        <div id="view-custom" class="view">
+            <div class="view-title">
+                <h2>Custom Table Alerts</h2>
+                <p>Select a custom table and attribute to monitor — showing records from the past 24 hours.</p>
+            </div>
+            <div class="detail-layout">
+                <div
+                    style="background: var(--card); padding: 32px; border-radius: 24px; border: 1px solid var(--border); margin-bottom: 32px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        <div>
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 600; color: var(--text-mute); margin-bottom: 8px; text-transform: uppercase;">1.
+                                Select Custom Table</label>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <select id="custom-table-select" class="bot-select"
+                                    style="width: 100%; border: 1px solid var(--border);"
+                                    onchange="onCustomTableChange()">
+                                    <option value="">Loading tables...</option>
+                                </select>
+                                <span id="table-priority-badge" class="status-pill"
+                                    style="display: none; white-space: nowrap;"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <label
+                                style="display: block; font-size: 12px; font-weight: 600; color: var(--text-mute); margin-bottom: 8px; text-transform: uppercase;">2.
+                                Select Attribute</label>
+                            <select id="custom-attribute-select" class="bot-select"
+                                style="width: 100%; border: 1px solid var(--border);">
+                                <option value="">Select a table first</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="table-priority-tag" class="status-pill" style="display: none; font-size: 10px;"></span>
+                </div>
+            </div>
+            <div class="table-card" style="overflow-x: auto;">
+                <table id="custom-table-data">
+                    <thead>
+                        <tr id="custom-table-head"></tr>
+                    </thead>
+                    <tbody id="custom-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Archived History View -->
+        <div id="view-archives" class="view">
+            <div class="view-title">
+                <h2>Archived History</h2>
+                <p>Consolidated view of all failure alerts and manually saved snapshots (defaults to last 24 hours).</p>
+            </div>
+
+            <div
+                style="background: var(--card); border-radius: 16px; border: 1px solid var(--border); padding: 16px; margin-bottom: 24px; display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap;">
+                <div>
+                    <label
+                        style="display: block; font-size: 11px; font-weight: 700; color: var(--text-mute); margin-bottom: 6px; text-transform: uppercase;">Category</label>
+                    <select id="archive-category-filter" class="bot-select" style="min-width: 180px;">
+                        <option value="All">All History</option>
+                        <option value="API Failure">API Failure</option>
+                        <option value="Bot Downtime">Bot Downtime</option>
+                        <option value="Bot Unresponsive">Bot Unresponsive</option>
+                        <option value="Knowledge Base">Knowledge Base</option>
+                        <option value="LLM Performance">LLM Performance</option>
+                    </select>
+                </div>
+                <div>
+                    <label
+                        style="display: block; font-size: 11px; font-weight: 700; color: var(--text-mute); margin-bottom: 6px; text-transform: uppercase;">Time
+                        Period</label>
+                    <select id="archive-days-filter" class="bot-select" style="min-width: 150px;">
+                        <option value="1">Last 24 Hours</option>
+                        <option value="7">Last 7 Days</option>
+                        <option value="10">Last 10 Days</option>
+                        <option value="30">Last 30 Days</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="bot-select"
+                        style="background: var(--accent); color: white; border: none; padding: 10px 24px; font-weight: 700; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);"
+                        onclick="loadArchives()">Apply</button>
+                    <button class="bot-select" onclick="clearArchiveFilters()"
+                        style="padding: 10px 20px; color: var(--text-mute);">Clear</button>
+                </div>
+            </div>
+
+            <div class="table-card" style="padding: 20px;">
+                <table style="width: 100%;">
+                    <thead id="archives-table-head">
+                        <tr>
+                            <th>Time</th>
+                            <th>Bot ID</th>
+                            <th>Type</th>
+                            <th>Incident / Snapshot Details</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archives-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Archive Detail View -->
+        <div id="view-archive-detail" class="view">
+            <div class="view-title" style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <h2 id="archive-detail-title">Archive Details</h2>
+                    <p id="archive-detail-meta">Loading...</p>
+                </div>
+                <button class="bot-select" onclick="switchView('archives')">Back to Archives</button>
+            </div>
+            <div class="table-card">
+                <table id="archive-detail-table">
+                    <thead id="archive-detail-head"></thead>
+                    <tbody id="archive-detail-body"></tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="footer-bar">
-            <span id="sync-status">Live Sync Active</span>
+            <span id="sync-status"></span>
             <div style="display: flex; gap: 12px; align-items: center;">
-                <span style="font-size: 0.8em; color: var(--text-mute); opacity: 0.7;">Stats automatically poll every 15
-                    mins</span>
                 <button class="refresh-trigger" style="background: var(--bg-surface); border: 1px solid var(--border);"
                     onclick="triggerManualSync()">Force Data Sync</button>
-                <button class="refresh-trigger" onclick="refreshData()">Refresh Dashboard</button>
             </div>
             <span id="last-refresh" class="mono">--:--</span>
         </div>
@@ -441,11 +570,12 @@
 
     <script>
         const CATEGORIES = [
-            { id: 'uptime', label: 'Bot Downtime', desc: 'Tracking bot response delays exceeding 5 minutes.' },
-            { id: 'unresponsive', label: 'Bot Unresponsive', desc: 'Sessions where the last message was from the user and the bot did not reply.' },
-            { id: 'apis', label: 'APIs', desc: 'External API failure alerts and codes.' },
-            { id: 'kb', label: 'Knowledge Base', desc: 'KB failure analysis and unanswered queries.' },
-            { id: 'llm', label: 'LLM Performance', desc: 'LLM response failures and quality metrics.' }
+            { id: 'uptime', label: 'Bot Downtime', desc: 'Detailed message delays and durations — showing records from the past 24 hours.' },
+            { id: 'unresponsive', label: 'Bot Unresponsive', desc: 'Sessions where the bot stopped responding to user — showing records from the past 24 hours.' },
+            { id: 'apis', label: 'APIs', desc: 'External API failure alerts and codes — showing records from the past 24 hours.' },
+            { id: 'custom', label: 'Custom Alerts', desc: 'Monitor specific attributes from custom tables — showing records from the past 24 hours.' },
+            { id: 'kb', label: 'Knowledge Base', desc: 'KB failure analysis and unanswered queries — showing records from the past 24 hours.' },
+            { id: 'llm', label: 'LLM Performance', desc: 'LLM response failures and quality metrics — showing records from the past 24 hours.' }
         ];
 
         let currentView = 'overview';
@@ -483,63 +613,59 @@
             });
             if (viewId === 'overview') document.querySelector('.nav-item').classList.add('active');
 
-            currentView = viewId;
-
             // Update View Visibility
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById('distribution-chart-container').style.display = (viewId === 'uptime' ? 'block' : 'none');
-            document.getElementById('detail-charts').style.gridTemplateColumns = (viewId === 'uptime' ? '1fr 1fr' : '1fr');
+
+            // Special handling for shared detailed views
+            const detailViews = ['uptime', 'apis', 'unresponsive', 'llm', 'kb'];
+            const viewMapping = {
+                'overview': 'view-overview',
+                'custom': 'view-custom',
+                'archives': 'view-archives',
+                'archive-detail': 'view-archive-detail'
+            };
 
             const indicator = document.getElementById('view-indicator');
 
-            if (viewId === 'overview') {
-                document.getElementById('view-overview').classList.add('active');
-                indicator.innerText = 'Dashboard / Overview';
-                refreshData();
-            } else if (viewId === 'uptime') {
+            if (detailViews.includes(viewId)) {
                 document.getElementById('view-detail').classList.add('active');
                 const cat = CATEGORIES.find(c => c.id === viewId);
                 document.getElementById('detail-title').innerText = cat.label;
                 document.getElementById('detail-desc').innerText = cat.desc;
                 indicator.innerText = `Dashboard / ${cat.label}`;
-                await loadDowntimeMetrics();
-            } else if (viewId === 'apis') {
-                document.getElementById('view-detail').classList.add('active');
-                const cat = CATEGORIES.find(c => c.id === viewId);
-                document.getElementById('detail-title').innerText = cat.label;
-                document.getElementById('detail-desc').innerText = cat.desc;
-                indicator.innerText = `Dashboard / ${cat.label}`;
-                await loadApiAlerts();
-            } else if (viewId === 'unresponsive') {
-                document.getElementById('view-detail').classList.add('active');
-                const cat = CATEGORIES.find(c => c.id === viewId);
-                document.getElementById('detail-title').innerText = cat.label;
-                document.getElementById('detail-desc').innerText = cat.desc;
-                indicator.innerText = `Dashboard / ${cat.label}`;
-                await loadUnresponsiveMetrics();
-            } else if (viewId === 'llm') {
-                document.getElementById('view-detail').classList.add('active');
-                const cat = CATEGORIES.find(c => c.id === viewId);
-                document.getElementById('detail-title').innerText = cat.label;
-                document.getElementById('detail-desc').innerText = cat.desc;
-                indicator.innerText = `Dashboard / ${cat.label}`;
-                await loadLlmMetrics();
-            } else if (viewId === 'kb') {
-                document.getElementById('view-detail').classList.add('active');
-                const cat = CATEGORIES.find(c => c.id === viewId);
-                document.getElementById('detail-title').innerText = cat.label;
-                document.getElementById('detail-desc').innerText = cat.desc;
-                indicator.innerText = `Dashboard / ${cat.label}`;
-                await loadKbMetrics();
+
+                if (viewId === 'uptime') await loadDowntimeMetrics();
+                else if (viewId === 'apis') await loadApiAlerts();
+                else if (viewId === 'unresponsive') await loadUnresponsiveMetrics();
+                else if (viewId === 'llm') await loadLlmMetrics();
+                else if (viewId === 'kb') await loadKbMetrics();
             } else {
-                const cat = CATEGORIES.find(c => c.id === viewId);
-                document.getElementById('view-detail').classList.add('active');
-                document.getElementById('detail-title').innerText = cat.label;
-                document.getElementById('detail-desc').innerText = cat.desc;
-                indicator.innerText = `Dashboard / ${cat.label}`;
-                renderDetailView(cat);
-                refreshData();
+                const targetViewId = viewMapping[viewId];
+                if (targetViewId) {
+                    document.getElementById(targetViewId).classList.add('active');
+                    if (viewId === 'overview') {
+                        indicator.innerText = 'Dashboard / Overview';
+                        refreshData();
+                    } else if (viewId === 'custom') {
+                        indicator.innerText = 'Dashboard / Custom Alerts';
+                        await loadCustomSchema();
+                    } else if (viewId === 'archives') {
+                        indicator.innerText = 'Dashboard / Archived History';
+                        // No auto-load; show prompt instead
+                        const tbody = document.getElementById('archives-table-body');
+                        if (tbody) {
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 60px; color: var(--text-mute);">' +
+                                '<div style="font-size: 24px; margin-bottom: 12px;">🔍</div>' +
+                                '<div style="font-weight: 600; font-size: 16px;">Ready to explore history?</div>' +
+                                '<div style="margin-top: 8px;">Select a category and date range, then click <b>Apply</b> to fetch records.</div>' +
+                                '</td></tr>';
+                        }
+                    } else if (viewId === 'archive-detail') {
+                        indicator.innerText = 'Dashboard / Archive Detail';
+                    }
+                }
             }
+
         }
 
         function displayTableError(errorMsg) {
@@ -562,8 +688,7 @@
                 const response = await fetch('/api/sync');
                 const data = await response.json();
                 if (data.success) {
-                    status.innerText = 'Sync Completed';
-                    setTimeout(() => status.innerText = 'Live Sync Active', 3000);
+                    setTimeout(() => status.innerText = '', 1000);
                     refreshData();
                 } else {
                     throw new Error(data.error || 'Sync failed');
@@ -589,8 +714,8 @@
                 } else {
                     renderApiTable(data.alerts || []);
                 }
-                status.innerText = 'Live Sync Active';
-                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                status.innerText = '';
+                fetchSyncStatus();
             } catch (error) {
                 console.error('Error fetching API alerts:', error);
                 status.innerText = 'Sync Error';
@@ -634,21 +759,6 @@
             } else {
                 tbody.innerHTML = rowsHtml;
             }
-
-            const counts = {};
-            alerts.forEach(a => {
-                const ts = parseFloat(a.timestamp);
-                if (!isNaN(ts)) {
-                    const hourDate = new Date(ts);
-                    hourDate.setMinutes(0, 0, 0);
-                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
-                    counts[key] = (counts[key] || 0) + 1;
-                }
-            });
-
-            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
-            const data = labels.map(l => counts[l]);
-            initChart('detail-chart', 'line', data.length > 0 ? data : [0, 0, 0, 0, 0], labels, 'var(--accent)');
         }
 
         async function loadDowntimeMetrics() {
@@ -663,7 +773,7 @@
                 } else {
                     renderDowntimeTable(data.metrics || []);
                 }
-                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                fetchSyncStatus();
             } catch (e) {
                 console.error(e);
             }
@@ -671,24 +781,24 @@
 
         function renderDowntimeTable(metrics) {
             const tbody = document.getElementById('table-body');
-            const validMetrics = metrics.filter(m => m.delay_seconds >= 300);
-
-            if (validMetrics.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 40px; color: var(--text-mute);">No bot delays detected.</td></tr>';
-                initChart('detail-chart', 'line', [0, 0, 0, 0, 0], ['N/A', 'N/A', 'N/A', 'N/A', 'N/A'], 'var(--accent)');
-                return;
-            }
+            const validMetrics = metrics.filter(m => m.delay_seconds >= 180 || m.delay_seconds === 0);
 
             tbody.innerHTML = validMetrics.map(m => {
+                const isUnresponsive = m.delay_seconds === 0;
                 const statusClass = 'critical';
-                const h = Math.floor(m.delay_seconds / 3600);
-                const mins = Math.floor((m.delay_seconds % 3600) / 60);
-                const secs = m.delay_seconds % 60;
 
                 let statusLabel = '';
-                if (h > 0) statusLabel = `${h}h ${mins}m`;
-                else if (mins > 0) statusLabel = `${mins}m ${secs}s`;
-                else statusLabel = `${secs}s`;
+                if (isUnresponsive) {
+                    statusLabel = 'Unresponsive';
+                } else {
+                    const h = Math.floor(m.delay_seconds / 3600);
+                    const mins = Math.floor((m.delay_seconds % 3600) / 60);
+                    const secs = m.delay_seconds % 60;
+                    if (h > 0) statusLabel = `${h}h ${mins}m`;
+                    else if (mins > 0) statusLabel = `${mins}m ${secs}s`;
+                    else statusLabel = `${secs}s`;
+                }
+
                 return `
                     <tr>
                         <td class="mono">${m.sessionId || 'N/A'}</td>
@@ -697,30 +807,6 @@
                     </tr>
                 `;
             }).join('');
-
-            const counts = {};
-            validMetrics.forEach(m => {
-                const hourDate = new Date(m.timestamp);
-                if (!isNaN(hourDate.getTime())) {
-                    hourDate.setMinutes(0, 0, 0);
-                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
-                    counts[key] = (counts[key] || 0) + 1;
-                }
-            });
-
-            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
-            const dataPoints = labels.map(l => counts[l]);
-            initChart('detail-chart', 'line', dataPoints.length > 0 ? dataPoints : [0, 0, 0, 0, 0], labels, 'var(--accent)');
-
-            // Distribution Chart
-            const dist = { '5-10m': 0, '10-20m': 0, '20m+': 0 };
-            validMetrics.forEach(m => {
-                const mins = m.delay_seconds / 60;
-                if (mins < 10) dist['5-10m']++;
-                else if (mins < 20) dist['10-20m']++;
-                else dist['20m+']++;
-            });
-            initChart('distribution-chart', 'doughnut', Object.values(dist), Object.keys(dist), ['#34C759', '#FF9500', '#FF3B30']);
         }
 
         async function loadLlmMetrics() {
@@ -735,7 +821,7 @@
                 } else {
                     renderLlmTable(data.metrics || []);
                 }
-                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                fetchSyncStatus();
             } catch (e) {
                 console.error(e);
             }
@@ -744,12 +830,6 @@
         function renderLlmTable(metrics) {
             const tbody = document.getElementById('table-body');
             const failures = metrics.filter(m => m.success === 0 || m.success === false || m.success === '0');
-
-            if (failures.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-mute);">No LLM failures found.</td></tr>';
-                initChart('detail-chart', 'line', [0, 0, 0, 0, 0], ['N/A', 'N/A', 'N/A', 'N/A', 'N/A'], 'var(--accent)');
-                return;
-            }
 
             tbody.innerHTML = failures.map(m => {
                 const statusClass = 'critical';
@@ -765,20 +845,6 @@
                     </tr>
                 `;
             }).join('');
-
-            const counts = {};
-            metrics.forEach(m => {
-                const hourDate = new Date(m.timestamp);
-                if (!isNaN(hourDate.getTime())) {
-                    hourDate.setMinutes(0, 0, 0);
-                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
-                    counts[key] = (counts[key] || 0) + 1;
-                }
-            });
-
-            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
-            const dataPoints = labels.map(l => counts[l]);
-            initChart('detail-chart', 'line', dataPoints.length > 0 ? dataPoints : [0, 0, 0, 0, 0], labels, 'var(--accent)');
         }
 
         async function loadUnresponsiveMetrics() {
@@ -795,8 +861,8 @@
                 } else {
                     renderUnresponsiveTable(data.records || []);
                 }
-                status.innerText = 'Live Sync Active';
-                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                status.innerText = '';
+                fetchSyncStatus();
             } catch (error) {
                 console.error('Error fetching Unresponsive metrics:', error);
                 status.innerText = 'Sync Error';
@@ -827,22 +893,6 @@
                     </tr>
                 `;
             }).join('');
-
-            // Optional: Render a simple trend chart for unresponsiveness
-            const counts = {};
-            records.forEach(r => {
-                const ts = parseFloat(r.timestamp) || new Date(r.timestamp).getTime();
-                if (!isNaN(ts)) {
-                    const hourDate = new Date(ts);
-                    hourDate.setMinutes(0, 0, 0);
-                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
-                    counts[key] = (counts[key] || 0) + 1;
-                }
-            });
-
-            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
-            const chartData = labels.map(l => counts[l]);
-            initChart('detail-chart', 'bar', chartData.length > 0 ? chartData : [0, 0, 0], labels, 'var(--critical)');
         }
 
         async function loadKbMetrics() {
@@ -857,7 +907,7 @@
                 } else {
                     renderKbTable(data.metrics || []);
                 }
-                document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                fetchSyncStatus();
             } catch (e) {
                 console.error(e);
             }
@@ -866,12 +916,6 @@
         function renderKbTable(metrics) {
             const tbody = document.getElementById('table-body');
             const failures = metrics.filter(m => m.was_answered === 0 || m.was_answered === false || m.was_answered === '0');
-
-            if (failures.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-mute);">No KB failures found.</td></tr>';
-                initChart('detail-chart', 'line', [0, 0, 0, 0, 0], ['N/A', 'N/A', 'N/A', 'N/A', 'N/A'], 'var(--accent)');
-                return;
-            }
 
             tbody.innerHTML = failures.map(m => {
                 const statusClass = 'critical';
@@ -887,20 +931,6 @@
                     </tr>
                 `;
             }).join('');
-
-            const counts = {};
-            metrics.forEach(m => {
-                const hourDate = new Date(m.timestamp);
-                if (!isNaN(hourDate.getTime())) {
-                    hourDate.setMinutes(0, 0, 0);
-                    const key = hourDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit' });
-                    counts[key] = (counts[key] || 0) + 1;
-                }
-            });
-
-            const labels = Object.keys(counts).sort((a, b) => new Date(a) - new Date(b));
-            const dataPoints = labels.map(l => counts[l]);
-            initChart('detail-chart', 'line', dataPoints.length > 0 ? dataPoints : [0, 0, 0, 0, 0], labels, 'var(--accent)');
         }
 
         function renderDetailView(cat) {
@@ -930,7 +960,7 @@
             } else if (currentView === 'unresponsive') {
                 await loadUnresponsiveMetrics();
             }
-            document.getElementById('last-refresh').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            fetchSyncStatus();
         }
 
         function renderOverview(summary) {
@@ -938,7 +968,7 @@
             grid.innerHTML = '';
 
             const cards = [
-                { id: 'uptime', label: 'High Delays (>5m)', val: summary.uptime || 0, status: (summary.uptime > 0 ? 'critical' : 'healthy') },
+                { id: 'uptime', label: 'High Delays (>3m)', val: summary.uptime || 0, status: (summary.uptime > 0 ? 'critical' : 'healthy') },
                 { id: 'unresponsive', label: 'Bot Unresponsive', val: summary.unresponsive || 0, status: (summary.unresponsive > 0 ? 'critical' : 'healthy') },
                 { id: 'apis', label: 'API Failures', val: summary.apis || 0, status: (summary.apis > 0 ? 'critical' : 'healthy') },
                 { id: 'kb', label: 'Unanswered (KB)', val: summary.kb || 0, status: (summary.kb > 0 ? 'critical' : 'healthy') },
@@ -962,17 +992,6 @@
             initChart('overview-chart', 'bar', [99, 98, 92, 94, 92, 88], ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
         }
 
-        function renderDetail(incidents) {
-            const tbody = document.getElementById('table-body');
-            tbody.innerHTML = incidents.map(e => `
-                <tr>
-                    <td>${e.time}</td>
-                    <td>${e.event}</td>
-                    <td><span class="status-pill ${e.severity === 'Critical' || e.severity === 'High' ? 'critical' : e.severity === 'Medium' ? 'warning' : 'healthy'}">${e.severity}</span></td>
-                </tr>
-            `).join('');
-            initChart('detail-chart', 'line', Array.from({ length: 12 }, () => 70 + Math.random() * 30));
-        }
 
         function initChart(canvasId, type, dataPoints, customLabels, color = '#000') {
             const ctx = document.getElementById(canvasId).getContext('2d');
@@ -1005,6 +1024,458 @@
         }
 
         setInterval(() => { refreshData(); }, 30000);
+        let currentSchema = null;
+
+        async function loadCustomSchema() {
+            const botId = document.getElementById('bot-selector').value;
+            const tableSelect = document.getElementById('custom-table-select');
+            tableSelect.innerHTML = '<option value="">Loading tables...</option>';
+
+            try {
+                const response = await fetch(`/api/schema?botId=${botId}`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                currentSchema = data.tables;
+                const categorized = data.categorized || { "Tables": currentSchema.map(t => t.tableName) };
+
+                let optionsHtml = '<option value="">-- Select Table --</option>';
+                const sortedCategories = ["P0: Critical", "P1: Important", "P2: General"];
+
+                sortedCategories.forEach(category => {
+                    const tables = categorized[category];
+                    if (tables && tables.length > 0) {
+                        const icon = category.startsWith('P0') ? '🔴' : category.startsWith('P1') ? '🟡' : '⚪';
+                        const prefix = category.split(':')[0]; // Get "P0", "P1" etc
+                        optionsHtml += `<optgroup label="${icon} ${category}">`;
+                        tables.forEach(tableName => {
+                            optionsHtml += `<option value="${tableName}">[${prefix}] ${tableName}</option>`;
+                        });
+                        optionsHtml += `</optgroup>`;
+                    }
+                });
+
+                // Add any extra categories GPT might have made
+                for (const [category, tables] of Object.entries(categorized)) {
+                    if (!sortedCategories.includes(category)) {
+                        optionsHtml += `<optgroup label="⚪ ${category}">`;
+                        tables.forEach(tableName => {
+                            optionsHtml += `<option value="${tableName}">${tableName}</option>`;
+                        });
+                        optionsHtml += `</optgroup>`;
+                    }
+                }
+                tableSelect.innerHTML = optionsHtml;
+            } catch (error) {
+                console.error('Error loading schema:', error);
+                tableSelect.innerHTML = '<option value="">Error loading schema</option>';
+            }
+        }
+
+        function onCustomTableChange() {
+            const tableName = document.getElementById('custom-table-select').value;
+            const attrSelect = document.getElementById('custom-attribute-select');
+            const priorityBadge = document.getElementById('table-priority-badge');
+            const priorityTag = document.getElementById('table-priority-tag');
+
+            if (!tableName) {
+                attrSelect.innerHTML = '<option value="">Select a table first</option>';
+                priorityBadge.style.display = 'none';
+                priorityTag.style.display = 'none';
+                return;
+            }
+
+            const table = currentSchema.find(t => t.tableName === tableName);
+            if (table) {
+                if (table.priority) {
+                    const statusClass = table.priority.startsWith('P0') ? 'critical' : table.priority.startsWith('P1') ? 'warning' : 'healthy';
+
+                    priorityBadge.innerText = table.priority;
+                    priorityBadge.className = `status-pill ${statusClass}`;
+                    priorityBadge.style.display = 'inline-flex';
+
+                    priorityTag.innerText = table.priority;
+                    priorityTag.className = `status-pill ${statusClass}`;
+                    priorityTag.style.display = 'inline-flex';
+                } else {
+                    priorityBadge.style.display = 'none';
+                    priorityTag.style.display = 'none';
+                }
+                loadCategorizedAttributes(tableName, table.columns);
+                loadCustomData();
+            }
+        }
+
+        async function loadCategorizedAttributes(tableName, columns) {
+            const botId = document.getElementById('bot-selector').value;
+            const attrSelect = document.getElementById('custom-attribute-select');
+            const attrNames = columns.map(c => c.name);
+
+            attrSelect.innerHTML = '<option value="">Categorizing attributes...</option>';
+
+            try {
+                const res = await fetch(`/api/categorize-attributes?botId=${botId}&tableName=${tableName}&attributes=${attrNames.join(',')}`);
+                const data = await res.json();
+                const categorized = data.categorized || { "P2: General": attrNames };
+
+                let optionsHtml = '<option value="">-- Select Attribute --</option>';
+                const sortedCategories = ["P0: Critical", "P1: Important", "P2: General"];
+
+                sortedCategories.forEach(category => {
+                    const attributes = categorized[category];
+                    if (attributes && attributes.length > 0) {
+                        const icon = category.startsWith('P0') ? '🔴' : category.startsWith('P1') ? '🟡' : '⚪';
+                        const prefix = category.split(':')[0];
+                        optionsHtml += `<optgroup label="${icon} ${category}">`;
+                        attributes.forEach(attrName => {
+                            const col = columns.find(c => c.name === attrName);
+                            const displayName = col ? (col.displayName || col.name) : attrName;
+                            optionsHtml += `<option value="${attrName}">[${prefix}] ${displayName}</option>`;
+                        });
+                        optionsHtml += `</optgroup>`;
+                    }
+                });
+
+                // Extra categories
+                for (const [category, attributes] of Object.entries(categorized)) {
+                    if (!sortedCategories.includes(category)) {
+                        optionsHtml += `<optgroup label="⚪ ${category}">`;
+                        attributes.forEach(attrName => {
+                            const col = columns.find(c => c.name === attrName);
+                            const displayName = col ? (col.displayName || col.name) : attrName;
+                            optionsHtml += `<option value="${attrName}">${displayName}</option>`;
+                        });
+                        optionsHtml += `</optgroup>`;
+                    }
+                }
+                attrSelect.innerHTML = optionsHtml;
+            } catch (error) {
+                console.error('Error categorizing attributes:', error);
+                attrSelect.innerHTML = '<option value="">-- Select Attribute --</option>' +
+                    columns.map(c => `<option value="${c.name}">${c.displayName || c.name}</option>`).join('');
+            }
+        }
+
+        async function loadCustomData() {
+            const botId = document.getElementById('bot-selector').value;
+            const tableName = document.getElementById('custom-table-select').value;
+            const tbody = document.getElementById('custom-table-body');
+            const thead = document.getElementById('custom-table-head');
+
+            if (!tableName) return;
+
+            tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding: 40px;">Loading custom data...</td></tr>';
+            thead.innerHTML = '';
+
+            try {
+                const response = await fetch(`/api/custom-data?botId=${botId}&tableName=${tableName}`);
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+                lastCustomRecords = data.records || [];
+                renderCustomTable(lastCustomRecords);
+            } catch (error) {
+                console.error('Error loading custom data:', error);
+                tbody.innerHTML = `<tr><td colspan="100" style="text-align:center; padding: 40px; color: var(--critical);">Error: ${error.message}</td></tr>`;
+            }
+        }
+
+        async function loadArchives(isInitial = false) {
+            const botId = document.getElementById('bot-selector').value;
+            const category = document.getElementById('archive-category-filter').value;
+            const days = document.getElementById('archive-days-filter').value;
+            const tbody = document.getElementById('archives-table-body');
+            const thead = document.getElementById('archives-table-head');
+            thead.innerHTML = '';
+
+            if (isInitial) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 60px; color: var(--text-mute);">' +
+                    '<div style="font-size: 24px; margin-bottom: 12px;">🔍</div>' +
+                    '<div style="font-weight: 600; font-size: 16px;">Ready to explore history?</div>' +
+                    '<div style="margin-top: 8px;">Select a category and date range, then click <b>Apply</b> to fetch records.</div>' +
+                    '</td></tr>';
+                thead.innerHTML = `<tr><th>Time</th><th>Bot ID</th><th>Type</th><th>Incident / Snapshot Details</th><th>Action</th></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px;">Consolidating history...</td></tr>';
+
+            try {
+                let url = `/api/history?botId=${botId}&category=${category}&days=${days}`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-mute);">No history found for the selected criteria.</td></tr>';
+                    return;
+                }
+
+                // 1. Render Dynamic Header
+                if (category === 'All' || category === 'Custom Alerts') {
+                    thead.innerHTML = `<tr><th>Time</th><th>Bot ID</th><th>Type</th><th>Incident / Snapshot Details</th><th>Action</th></tr>`;
+                } else if (category === 'API Failure') {
+                    thead.innerHTML = `<tr><th>Time</th><th>Bot ID</th><th>API Name</th><th>Status Code</th><th>Action/SID</th></tr>`;
+                } else if (category === 'Bot Downtime') {
+                    thead.innerHTML = `<tr><th>Time</th><th>Bot ID</th><th>Session ID</th><th>Delay</th><th>Action</th></tr>`;
+                } else if (category === 'Bot Unresponsive') {
+                    thead.innerHTML = `<tr><th>Time</th><th>Bot ID</th><th>Session ID</th><th>Last Message</th><th>Action</th></tr>`;
+                } else if (category === 'Knowledge Base') {
+                    thead.innerHTML = `<tr><th>Time</th><th>Bot ID</th><th>Session ID</th><th>Status</th><th>Action</th></tr>`;
+                } else if (category === 'LLM Performance') {
+                    thead.innerHTML = `<tr><th>Time</th><th>Bot ID</th><th>Session ID</th><th>Result</th><th>Action</th></tr>`;
+                }
+
+                // 2. Render Dynamic Rows
+                let currentGroup = '';
+                let html = '';
+
+                data.forEach(item => {
+                    const group = classifyDate(item.timestamp);
+                    if (group !== currentGroup) {
+                        currentGroup = group;
+                        html += `<tr style="background: rgba(0,0,0,0.02);"><td colspan="10" style="font-weight: 700; font-size: 11px; color: var(--text-mute); text-transform: uppercase; padding: 8px 24px;">${group}</td></tr>`;
+                    }
+
+                    const _d = new Date(item.timestamp);
+                    const dateStr = _d.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
+                    const timeStr = _d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const dateTimeStr = `<span style="font-weight:600;">${dateStr}</span><br><span style="color:var(--text-mute); font-size:10px;">${timeStr}</span>`;
+                    const chatBtn = `<a href="${item.chatURL}" target="_blank" class="bot-select" style="text-decoration: none; padding: 4px 10px; font-size: 11px; background: var(--bg-surface);">View Chat</a>`;
+
+                    if (category === 'All' || category === 'Custom Alerts') {
+                        const isSnapshot = item.type === 'Custom Alerts';
+                        html += `
+                            <tr>
+                                <td style="font-size: 11px;">${dateTimeStr}</td>
+                                <td class="mono">${item.botId}</td>
+                                <td><span class="status-pill warning" style="font-size: 10px;">${item.type}</span></td>
+                                <td style="font-weight: 500;">${item.details}</td>
+                                <td>
+                                    ${isSnapshot ?
+                                `<button class="bot-select" style="padding: 4px 10px; font-size: 11px; background: var(--bg-surface);" onclick="viewArchiveDetail(${item.id})">View Snapshot</button>` :
+                                chatBtn
+                            }
+                                </td>
+                            </tr>`;
+                    } else if (category === 'API Failure') {
+                        html += `
+                            <tr>
+                                <td style="font-size: 11px;">${dateTimeStr}</td>
+                                <td class="mono">${item.botId}</td>
+                                <td style="font-weight: 500;">${item.apiName || 'Unknown'}</td>
+                                <td><span class="status-pill critical">${item.statusCode || '0'}</span></td>
+                                <td><div style="display:flex; gap:8px; align-items:center;">${chatBtn}<span class="mono" style="font-size:10px; color:var(--text-mute);">${item.sessionId || ''}</span></div></td>
+                            </tr>`;
+                    } else if (category === 'Bot Downtime') {
+                        html += `
+                            <tr>
+                                <td style="font-size: 11px;">${dateTimeStr}</td>
+                                <td class="mono">${item.botId}</td>
+                                <td class="mono" style="font-size: 11px;">${item.sessionId}</td>
+                                <td><span class="status-pill warning">${item.delaySeconds || 0}s Delay</span></td>
+                                <td>${chatBtn}</td>
+                            </tr>`;
+                    } else if (category === 'Bot Unresponsive') {
+                        html += `
+                            <tr>
+                                <td style="font-size: 11px;">${dateTimeStr}</td>
+                                <td class="mono">${item.botId}</td>
+                                <td class="mono" style="font-size: 11px;">${item.sessionId}</td>
+                                <td style="font-weight: 500; font-size: 12px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.lastMessage || 'No message'}</td>
+                                <td>${chatBtn}</td>
+                            </tr>`;
+                    } else if (category === 'Knowledge Base') {
+                        html += `
+                            <tr>
+                                <td style="font-size: 11px;">${dateTimeStr}</td>
+                                <td class="mono">${item.botId}</td>
+                                <td class="mono" style="font-size: 11px;">${item.sessionId}</td>
+                                <td><span class="status-pill warning">${item.kbStatus || 'Unknown'}</span></td>
+                                <td>${chatBtn}</td>
+                            </tr>`;
+                    } else if (category === 'LLM Performance') {
+                        html += `
+                            <tr>
+                                <td style="font-size: 11px;">${dateTimeStr}</td>
+                                <td class="mono">${item.botId}</td>
+                                <td class="mono" style="font-size: 11px;">${item.sessionId}</td>
+                                <td><span class="status-pill critical">Failure</span></td>
+                                <td>${chatBtn}</td>
+                            </tr>`;
+                    }
+                });
+                tbody.innerHTML = html;
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--critical);">Error loading history</td></tr>';
+            }
+        }
+
+        function classifyDate(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (date >= today) return 'Today';
+            if (date >= yesterday) return 'Yesterday';
+            return 'Earlier';
+        }
+
+        async function archiveCurrentCustomData() {
+            const tableSelect = document.getElementById('custom-table-select');
+            const tableName = tableSelect.value;
+            const botId = document.getElementById('bot-selector').value;
+
+            if (!tableName || !lastCustomRecords || lastCustomRecords.length === 0) {
+                alert('No data to archive. Please select a table and fetch results first.');
+                return;
+            }
+
+            if (!confirm(`Archive ${lastCustomRecords.length} records from ${tableName}?`)) return;
+
+            try {
+                const res = await fetch('/api/archive-custom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ botId, tableName, records: lastCustomRecords })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Data archived successfully!');
+                }
+            } catch (e) {
+                alert('Failed to archive data.');
+            }
+        }
+
+        let lastCustomRecords = []; // Global variable to store last fetched data
+
+        function clearArchiveFilters() {
+            document.getElementById('archive-category-filter').value = 'All';
+            document.getElementById('archive-days-filter').value = '1';
+            loadArchives(true);
+        }
+
+        async function viewArchiveDetail(id) {
+            switchView('archive-detail');
+            const meta = document.getElementById('archive-detail-meta');
+            const head = document.getElementById('archive-detail-head');
+            const body = document.getElementById('archive-detail-body');
+
+            meta.innerText = 'Loading...';
+            head.innerHTML = '';
+            body.innerHTML = '';
+
+            try {
+                const res = await fetch(`/api/archive-detail/${id}`);
+                const data = await res.json();
+
+                meta.innerText = `Archived on ${new Date(data.timestamp).toLocaleString()} | Bot: ${data.botId} | Table: ${data.tableName}`;
+
+                const records = data.recordsJson;
+                if (records.length > 0) {
+                    const keys = Array.from(new Set(records.flatMap(Object.keys)));
+                    head.innerHTML = `<tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr>`;
+                    body.innerHTML = records.map(r => `
+                        <tr>${keys.map(k => {
+                        let val = r[k];
+                        return `<td>${val !== null && val !== undefined ? val : '-'}</td>`;
+                    }).join('')}</tr>
+                    `).join('');
+                } else {
+                    body.innerHTML = '<tr><td>No records in archive</td></tr>';
+                }
+            } catch (e) {
+                meta.innerText = 'Error loading archive details';
+            }
+        }
+
+        function renderCustomTable(records) {
+            const tbody = document.getElementById('custom-table-body');
+            const thead = document.getElementById('custom-table-head');
+            const tableName = document.getElementById('custom-table-select').value;
+
+            if (records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding: 40px;">No records found in this table.</td></tr>';
+                return;
+            }
+
+            // Get unique keys from all records as headers
+            const keys = Array.from(new Set(records.flatMap(Object.keys))).filter(k => k !== '__time');
+
+            // Push __time to start if it exists
+            if (records[0].__time) keys.unshift('__time');
+
+            // Find schema for this table to get display names
+            const tableSchema = currentSchema.find(t => t.tableName === tableName);
+
+            thead.innerHTML = keys.map(k => {
+                let displayName = k;
+                if (tableSchema && tableSchema.columns) {
+                    const col = tableSchema.columns.find(c => c.name === k);
+                    if (col && col.displayName) displayName = col.displayName;
+                }
+                return `<th>${displayName}</th>`;
+            }).join('');
+
+            tbody.innerHTML = records.map(r => `
+                <tr>
+                    ${keys.map(k => {
+                let val = r[k];
+                if (k === '__time' || k === 'timestamp' || k === 'created_at' || k === 'updated_at') {
+                    val = val ? new Date(val).toLocaleString() : '-';
+                }
+                return `<td>${val === null || val === undefined ? '-' : val}</td>`;
+            }).join('')}
+                </tr>
+            `).join('');
+        }
+
+        let lastSyncTimestamp = null;
+        let syncInterval = 15 * 60 * 1000;
+
+        async function fetchSyncStatus() {
+            try {
+                const res = await fetch('/api/health');
+                const data = await res.json();
+                lastSyncTimestamp = data.lastSyncTimestamp;
+                syncInterval = data.syncInterval;
+                renderSyncStatus();
+            } catch (e) {
+                console.error('Failed to fetch sync status', e);
+            }
+        }
+
+        function renderSyncStatus() {
+            const statusEl = document.getElementById('last-refresh');
+            if (!lastSyncTimestamp) {
+                statusEl.innerText = 'Calculating...';
+                return;
+            }
+
+            const now = Date.now();
+            const nextSync = lastSyncTimestamp + syncInterval;
+            const remaining = nextSync - now;
+
+            if (remaining <= 0) {
+                statusEl.innerText = 'Syncing...';
+                return;
+            }
+
+            const mins = Math.floor(remaining / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+
+            statusEl.innerText = `Next sync in ${mins}m ${secs}s`;
+        }
+
+        setInterval(renderSyncStatus, 1000);
+        setInterval(fetchSyncStatus, 30000);
+        fetchSyncStatus();
+
         window.onload = () => switchView('overview');
     </script>
 </body>
