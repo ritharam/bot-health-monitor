@@ -8,8 +8,8 @@ export async function fetchCustomData(botId, apiKey, tableName) {
     const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}`;
     let allRecords = [];
     let currentOffset = 0;
-    const batchLimit = 1000;
-    const maxTotalRecords = 200000;
+    const batchLimit = 10000;
+    const maxTotalRecords = 300000;
 
     while (allRecords.length < maxTotalRecords) {
         const payload = {
@@ -41,7 +41,9 @@ export async function fetchCustomData(botId, apiKey, tableName) {
                     'accept': 'application/json',
                     'content-type': 'application/json',
                     'x-api-key': apiKey,
-                    'platform': 'cloud'
+                    'origin': 'https://cloud.yellow.ai',
+                    'platform': 'cloud',
+                    'user-agent': 'Mozilla/5.0'
                 },
                 body: JSON.stringify(payload)
             });
@@ -49,10 +51,9 @@ export async function fetchCustomData(botId, apiKey, tableName) {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`--- CUSTOM FETCH ERROR (${response.status}) ---`);
-                console.error(`Table: ${tableName}, Offset: ${currentOffset}`);
-                console.error('---------------------------------');
+                console.error(`Table: ${tableName}, Offset: ${currentOffset}, Body: ${errorText.substring(0, 200)}`);
                 if (allRecords.length > 0) break;
-                throw new Error(`Yellow.ai API returned ${response.status}`);
+                throw new Error(`Yellow.ai API returned ${response.status}: ${errorText.substring(0, 100)}`);
             }
 
             const data = await response.json();

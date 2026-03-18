@@ -11,8 +11,8 @@ async function yellowFetch(botId, apiKey, payload) {
     const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}`;
     let allRecords = [];
     let currentOffset = 0;
-    const batchLimit = 1000;
-    const maxTotalRecords = 200000; // Limit to 200k for history to avoid server crash
+    const batchLimit = 10000;
+    const maxTotalRecords = 300000; // Increased safety cap
 
     while (allRecords.length < maxTotalRecords) {
         const batchPayload = { ...payload, offset: currentOffset, limit: batchLimit };
@@ -42,11 +42,6 @@ async function yellowFetch(botId, apiKey, payload) {
         }
 
         const data = await response.json();
-        if (!data.success) {
-            if (allRecords.length > 0) break;
-            throw new Error(data.message || 'API request failed');
-        }
-
         const records = data.data?.records || data.data?.rows || [];
         allRecords = allRecords.concat(records);
         console.log(`[Batch] [${botId}] Source: ${payload.dataSource}, Offset: ${currentOffset}, Fetched: ${records.length}, Total: ${allRecords.length}`);
@@ -55,7 +50,7 @@ async function yellowFetch(botId, apiKey, payload) {
         currentOffset += batchLimit;
 
         // Minor delay to avoid hitting rate limits too hard
-        if (currentOffset % 5000 === 0) await new Promise(r => setTimeout(r, 100));
+        if (currentOffset % 20000 === 0) await new Promise(r => setTimeout(r, 100));
     }
 
     return allRecords;
