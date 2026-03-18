@@ -8,8 +8,8 @@ export async function fetchCustomData(botId, apiKey, tableName) {
     const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}`;
     let allRecords = [];
     let currentOffset = 0;
-    const batchLimit = 100;
-    const maxTotalRecords = 100000;
+    const batchLimit = 1000;
+    const maxTotalRecords = 200000;
 
     while (allRecords.length < maxTotalRecords) {
         const payload = {

@@ -1,3 +1,5 @@
+import fetch from 'node-fetch';
+
 const MONITORED_BOTS = [
     { id: 'x1749095342235', apiKey: 'oC73e4WTensl0_l4O4L4cgXHCQ4y0dGaoxyEXVjr', name: 'Kent RO' },
     { id: 'x1674052117168', apiKey: '_-8bXdPQjVIxzhvRh1ihw1WEzItbzAnL_2o65QMz', name: 'Decathalon' },
@@ -9,8 +11,8 @@ async function yellowFetch(botId, apiKey, payload) {
     const url = `https://cloud.yellow.ai/api/insights/data-explorer?bot=${botId}`;
     let allRecords = [];
     let currentOffset = 0;
-    const batchLimit = 100;
-    const maxTotalRecords = 500000;
+    const batchLimit = 1000;
+    const maxTotalRecords = 200000; // Limit to 200k for history to avoid server crash
 
     while (allRecords.length < maxTotalRecords) {
         const batchPayload = { ...payload, offset: currentOffset, limit: batchLimit };
@@ -52,8 +54,8 @@ async function yellowFetch(botId, apiKey, payload) {
         if (records.length < batchLimit) break;
         currentOffset += batchLimit;
 
-        // Minor delay to be kind to the API if fetching many batches
-        if (currentOffset % 20000 === 0) await new Promise(r => setTimeout(r, 200));
+        // Minor delay to avoid hitting rate limits too hard
+        if (currentOffset % 5000 === 0) await new Promise(r => setTimeout(r, 100));
     }
 
     return allRecords;
