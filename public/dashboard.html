@@ -281,6 +281,20 @@
             border-bottom: none;
         }
 
+        /* Custom Table Scrollability */
+        .custom-table-container {
+            max-height: 600px;
+            overflow-y: auto;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .custom-table-container thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 1px 0 var(--border);
+        }
+
         /* Footer Controls */
         .footer-bar {
             position: fixed;
@@ -443,7 +457,7 @@
             <div class="detail-layout">
                 <div
                     style="background: var(--card); padding: 32px; border-radius: 24px; border: 1px solid var(--border); margin-bottom: 32px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div style="grid-template-columns: 1fr 1fr; gap: 24px; display: grid;">
                         <div>
                             <label
                                 style="display: block; font-size: 12px; font-weight: 600; color: var(--text-mute); margin-bottom: 8px; text-transform: uppercase;">1.
@@ -469,18 +483,23 @@
                         </div>
                     </div>
                 </div>
-            <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span id="table-priority-tag" class="status-pill" style="display: none; font-size: 10px;"></span>
+
+                <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="table-priority-tag" class="status-pill" style="display: none; font-size: 10px;"></span>
+                    </div>
                 </div>
-            </div>
-            <div class="table-card" style="overflow-x: auto;">
-                <table id="custom-table-data">
-                    <thead>
-                        <tr id="custom-table-head"></tr>
-                    </thead>
-                    <tbody id="custom-table-body"></tbody>
-                </table>
+
+                <div class="table-card" style="margin-top: 24px;">
+                    <div class="custom-table-container">
+                        <table id="custom-table-data">
+                            <thead>
+                                <tr id="custom-table-head"></tr>
+                            </thead>
+                            <tbody id="custom-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1400,15 +1419,12 @@
             const tableName = document.getElementById('custom-table-select').value;
 
             if (records.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding: 40px;">No records found in this table.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="100" style="text-align:center; padding: 40px; color: var(--text-mute);">No records found in the last 24 hours.</td></tr>';
                 return;
             }
 
             // Get unique keys from all records as headers
             const keys = Array.from(new Set(records.flatMap(Object.keys))).filter(k => k !== '__time');
-
-            // Push __time to start if it exists
-            if (records[0].__time) keys.unshift('__time');
 
             // Find schema for this table to get display names
             const tableSchema = currentSchema.find(t => t.tableName === tableName);
@@ -1419,17 +1435,27 @@
                     const col = tableSchema.columns.find(c => c.name === k);
                     if (col && col.displayName) displayName = col.displayName;
                 }
-                return `<th>${displayName}</th>`;
+                return `<th style="white-space: nowrap;">${displayName}</th>`;
             }).join('');
 
             tbody.innerHTML = records.map(r => `
                 <tr>
                     ${keys.map(k => {
                 let val = r[k];
-                if (k === '__time' || k === 'timestamp' || k === 'created_at' || k === 'updated_at') {
-                    val = val ? new Date(val).toLocaleString() : '-';
+                
+                // Format Dates
+                if (k.toLowerCase().includes('time') || k.toLowerCase().includes('date') || k.toLowerCase().includes('_at')) {
+                    if (val && !isNaN(new Date(val).getTime())) {
+                        const d = new Date(val);
+                        val = `<span style="font-weight:600;">${d.toLocaleDateString([], {day:'2-digit', month:'short'})}</span><br><span style="font-size:10px; color:var(--text-mute);">${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+                    }
+                } 
+                // Format Objects (No JSON)
+                else if (typeof val === 'object' && val !== null) {
+                    val = `<div style="font-size:11px; color:var(--text-mute); max-width:250px; overflow:hidden; text-overflow:ellipsis;">${JSON.stringify(val).replace(/[{}"]/g, '')}</div>`;
                 }
-                return `<td>${val === null || val === undefined ? '-' : val}</td>`;
+
+                return `<td style="vertical-align: top; white-space: nowrap;">${val === null || val === undefined ? '-' : val}</td>`;
             }).join('')}
                 </tr>
             `).join('');
