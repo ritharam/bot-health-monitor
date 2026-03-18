@@ -5,6 +5,12 @@ import cors from 'cors';
 import { fetchCustomData } from './services/customFetcher.js';
 import { categorizeItems } from './services/gptService.js';
 import { getConsolidatedHistory } from './services/historyService.js';
+import { MONITORED_BOTS, SYNC_INTERVAL } from './services/config.js';
+import { fetchAlerts } from './services/apiFetcher.js';
+import { fetchLlmMetrics } from './services/llmFetcher.js';
+import { fetchKbMetrics } from './services/kbFetcher.js';
+import { fetchDowntimeMetrics } from './services/downtimeFetcher.js';
+import { fetchUnresponsiveMetrics } from './services/unresponsiveFetcher.js';
 
 dotenv.config();
 
@@ -14,6 +20,10 @@ const port = 3001;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+const apiRouter = express.Router();
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 // Database setup
 // Use /tmp for writable database in Vercel environment
@@ -117,23 +127,10 @@ db.exec(`
   )
 `);
 
-import { fetchAlerts } from './services/apiFetcher.js';
-import { fetchLlmMetrics } from './services/llmFetcher.js';
-import { fetchKbMetrics } from './services/kbFetcher.js';
-import { fetchDowntimeMetrics } from './services/downtimeFetcher.js';
-import { fetchUnresponsiveMetrics } from './services/unresponsiveFetcher.js';
-
-const MONITORED_BOTS = [
-  { id: 'x1749095342235', apiKey: 'oC73e4WTensl0_l4O4L4cgXHCQ4y0dGaoxyEXVjr', name: 'Kent RO' },
-  { id: 'x1674052117168', apiKey: '_-8bXdPQjVIxzhvRh1ihw1WEzItbzAnL_2o65QMz', name: 'Decathalon' },
-  { id: 'x1752564834557', apiKey: '5BJIvSMO1WQr8MuaLXdvadBndCOnywO3dmjD5NqF', name: 'Swiggy' },
-  { id: 'x1751972733090', apiKey: 'LkXSo4PeUuk8o0fXrsOwK8C9UWcxecO80MDWukxJ', name: 'JFL Dominos' }
-];
 
 console.log(`Bot monitoring initialized for: ${MONITORED_BOTS.map(b => b.name).join(', ')}`);
 
 let lastSyncTimestamp = Date.now();
-const SYNC_INTERVAL = 15 * 60 * 1000;
 
 async function pollAllBots() {
   lastSyncTimestamp = Date.now();
@@ -170,7 +167,6 @@ if (!process.env.VERCEL) {
   setInterval(pollAllBots, SYNC_INTERVAL);
 }
 
-const apiRouter = express.Router();
 
 // Manual sync endpoint for Vercel Cron
 apiRouter.get('/sync', async (req, res) => {
@@ -342,7 +338,11 @@ apiRouter.get('/schema', async (req, res) => {
     const bot = MONITORED_BOTS.find(b => b.id === botId);
 
     if (!bot) {
-      return res.status(404).json({ error: 'Bot not found' });
+      return res.status(404).json({ 
+        error: 'Bot not found', 
+        providedBotId: botId, 
+        availableBots: MONITORED_BOTS.map(b => b.id) 
+      });
     }
 
     try {
@@ -405,7 +405,11 @@ apiRouter.get('/custom-data', async (req, res) => {
     const bot = MONITORED_BOTS.find(b => b.id === botId);
 
     if (!bot) {
-      return res.status(404).json({ error: 'Bot not found' });
+      return res.status(404).json({ 
+        error: 'Bot not found', 
+        providedBotId: botId, 
+        availableBots: MONITORED_BOTS.map(b => b.id) 
+      });
     }
 
     if (!tableName) {
@@ -469,8 +473,6 @@ apiRouter.get('/archive-detail/:id', (req, res) => {
     res.json({ ...archive, recordsJson: JSON.parse(archive.recordsJson) });
 });
 
-app.use('/api', apiRouter);
-app.use('/', apiRouter);
 
 if (!process.env.VERCEL) {
   app.listen(port, () => {
@@ -481,7 +483,13 @@ if (!process.env.VERCEL) {
 // 404 Handler
 app.use((req, res) => {
   console.warn(`[404] ${req.method} ${req.url}`);
-  res.status(404).json({ error: `Path ${req.url} not found` });
+  res.status(404).json({ 
+    error: `Path ${req.url} not found`,
+    method: req.method,
+    baseUrl: req.baseUrl,
+    path: req.path,
+    query: req.query
+  });
 });
 
 // Global Error Handler

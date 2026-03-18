@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+
 
 export async function fetchCustomData(botId, apiKey, tableName) {
     console.log(`--- CUSTOM DATA REQUEST (24h) ---`);
