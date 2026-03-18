@@ -17,6 +17,11 @@ dotenv.config();
 const app = express();
 const port = 3001;
 
+// Database setup
+// Use /tmp for writable database in Vercel environment
+const dbPath = process.env.VERCEL ? '/tmp/alerts.db' : 'alerts.db';
+const db = new Database(dbPath);
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
@@ -25,10 +30,37 @@ const apiRouter = express.Router();
 app.use('/api', apiRouter);
 app.use('/', apiRouter);
 
-// Database setup
-// Use /tmp for writable database in Vercel environment
-const dbPath = process.env.VERCEL ? '/tmp/alerts.db' : 'alerts.db';
-const db = new Database(dbPath);
+// Request logging middleware
+apiRouter.use((req, res, next) => {
+  try {
+    db.prepare('INSERT INTO server_logs (method, url, baseUrl, path, query) VALUES (?, ?, ?, ?, ?)')
+      .run(req.method, req.url, req.baseUrl, req.path, JSON.stringify(req.query));
+  } catch (e) {
+    console.error('Logging failed:', e);
+  }
+  next();
+});
+
+// Debug endpoint to check state in production
+apiRouter.get('/debug', (req, res) => {
+  try {
+    const logs = db.prepare('SELECT * FROM server_logs ORDER BY id DESC LIMIT 50').all();
+    res.json({
+      message: 'Debug state',
+      processEnvVercel: process.env.VERCEL,
+      botCount: MONITORED_BOTS.length,
+      botIds: MONITORED_BOTS.map(b => b.id),
+      syncInterval: SYNC_INTERVAL,
+      baseUrl: req.baseUrl,
+      path: req.path,
+      url: req.url,
+      originalUrl: req.originalUrl,
+      recentLogs: logs
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Debug failed', message: e.message });
+  }
+});
 db.exec(`
   CREATE TABLE IF NOT EXISTS api_alerts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,6 +156,18 @@ db.exec(`
     tableName TEXT,
     recordsCount INTEGER,
     recordsJson TEXT
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS server_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    method TEXT,
+    url TEXT,
+    baseUrl TEXT,
+    path TEXT,
+    query TEXT
   )
 `);
 
