@@ -437,6 +437,14 @@
             justify-content: center;
         }
 
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
         .modal-card {
             background: var(--card);
             border-radius: 24px;
@@ -554,6 +562,14 @@
                 </svg>
                 Archived History
             </div>
+            <div class="nav-item" onclick="switchView('saved-queries')" id="nav-saved-queries">
+                <svg class="nav-icon icon-svg" viewBox="0 0 24 24">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                Saved Queries & Alerts
+            </div>
         </nav>
     </aside>
 
@@ -612,10 +628,17 @@
                 <button class="explorer-btn" onclick="openFilterPanel()">
                     <span>🔍</span> Filter
                 </button>
-                <button class="explorer-btn" onclick="openSummarizeModal()">
+                <button class="explorer-btn" onclick="openSummarizeModal()" style="background: rgba(0, 122, 255, 0.05);">
                     <span>📊</span> Summarize
                 </button>
+                <button class="explorer-btn" onclick="openSaveQueryModal()" style="background: rgba(52, 199, 89, 0.05); color: #34c759;">
+                    <span>💾</span> Save Query
+                </button>
+                <button id="reset-filters-btn" class="explorer-btn" onclick="clearAllFilters()" style="display:none; background: rgba(255, 59, 48, 0.05); color: #ff3b30;">
+                    <span>↺</span> Reset Filters
+                </button>
             </div>
+            <div id="active-filter-chips" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:16px;"></div>
             <div class="detail-layout">
                 <div
                     style="background: var(--card); padding: 32px; border-radius: 24px; border: 1px solid var(--border); margin-bottom: 32px;">
@@ -722,6 +745,17 @@
             </div>
         </div>
 
+        <!-- Saved Queries View -->
+        <div id="view-saved-queries" class="view">
+            <div class="view-title">
+                <h2>Saved Queries & Alerts</h2>
+                <p>Manage your saved explorations and monitor automated alerts.</p>
+            </div>
+            <div id="queries-list-container" class="metrics-grid" style="grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));">
+                <!-- Data will be injected here -->
+            </div>
+        </div>
+
         <!-- Archive Detail View -->
         <div id="view-archive-detail" class="view">
             <div class="view-title" style="display: flex; align-items: center; justify-content: space-between;">
@@ -803,7 +837,8 @@
                 'overview': 'view-overview',
                 'custom': 'view-custom',
                 'archives': 'view-archives',
-                'archive-detail': 'view-archive-detail'
+                'archive-detail': 'view-archive-detail',
+                'saved-queries': 'view-saved-queries'
             };
 
             const indicator = document.getElementById('view-indicator');
@@ -841,6 +876,9 @@
                                 '<div style="margin-top: 8px;">Select a category and date range, then click <b>Apply</b> to fetch records.</div>' +
                                 '</td></tr>';
                         }
+                    } else if (viewId === 'saved-queries') {
+                        indicator.innerText = 'Dashboard / Saved Queries & Alerts';
+                        renderSavedQueries();
                     } else if (viewId === 'archive-detail') {
                         indicator.innerText = 'Dashboard / Archive Detail';
                     }
@@ -1254,7 +1292,8 @@
             }
         }
 
-        function onCustomTableChange() {
+        async function onCustomTableChange(targetTableName) {
+            if (targetTableName) document.getElementById('custom-table-select').value = targetTableName;
             const tableName = document.getElementById('custom-table-select').value;
             const attrSelect = document.getElementById('custom-attribute-select');
             const priorityBadge = document.getElementById('table-priority-badge');
@@ -1284,7 +1323,7 @@
                     priorityTag.style.display = 'none';
                 }
                 loadCategorizedAttributes(tableName, table.columns);
-                loadCustomData();
+                return loadCustomData();
             }
         }
 
@@ -1687,8 +1726,13 @@
             filteredData: [],
             filters: {}, // { field: { type: 'select', values: [], condition: 'equals' } }
             summarize: null, // { groupBy: [], metrics: [] }
-            tableId: 'custom-table-data'
+            tableId: 'custom-table-data',
+            sourceBotId: '',
+            sourceTableName: ''
         };
+
+        let savedQueries = JSON.parse(localStorage.getItem('explorerQueries') || '[]');
+        let savedAlerts = JSON.parse(localStorage.getItem('explorerAlerts') || '[]');
 
         function initAdvancedTable({ tableId, data }) {
             explorerState.rawData = data;
@@ -1696,7 +1740,10 @@
             explorerState.tableId = tableId;
             explorerState.filters = {};
             explorerState.summarize = null;
+            explorerState.sourceBotId = document.getElementById('bot-selector').value;
+            explorerState.sourceTableName = document.getElementById('custom-table-select')?.value || '';
             
+            updateFilterChips();
             console.log(`Explorer initialized for ${tableId} with ${data.length} records`);
         }
 
@@ -1708,6 +1755,52 @@
 
         function closeFilterPanel() {
             document.getElementById('filter-panel').classList.remove('open');
+        }
+
+        function clearAllFilters() {
+            explorerState.filters = {};
+            document.getElementById('ts-filter-type').value = 'all';
+            document.getElementById('ts-filter-count').value = '7';
+            document.getElementById('ts-filter-unit').value = 'days';
+            document.getElementById('ts-include-today').checked = true;
+            
+            applyFilters(); // Re-run filtering to clear table
+            
+            if (document.getElementById('filter-panel').classList.contains('open')) {
+                onFilterFieldSearch();
+                renderDynamicFilters();
+            }
+            showNotification("Filters cleared");
+        }
+
+        function updateFilterChips() {
+            const container = document.getElementById('active-filter-chips');
+            const resetBtn = document.getElementById('reset-filters-btn');
+            if (!container) return;
+
+            const activeFilters = Object.keys(explorerState.filters).filter(k => explorerState.filters[k].values.length > 0);
+            const hasTs = document.getElementById('ts-filter-type')?.value !== 'all';
+
+            if (activeFilters.length === 0 && !hasTs) {
+                container.innerHTML = '';
+                resetBtn.style.display = 'none';
+                return;
+            }
+
+            resetBtn.style.display = 'inline-flex';
+            let chips = '';
+            if (hasTs) {
+                const type = document.getElementById('ts-filter-type').value;
+                chips += `<span class="status-pill healthy" style="background:#eafaf1; color:#2ecc71; font-size:11px; padding:4px 10px;">🕒 ${type}</span>`;
+            }
+
+            activeFilters.forEach(col => {
+                const count = explorerState.filters[col].values.length;
+                const displayName = getDN(col);
+                chips += `<span class="status-pill healthy" style="background:#eafaf1; color:#2ecc71; font-size:11px; padding:4px 10px;">${displayName}: ${count}</span>`;
+            });
+
+            container.innerHTML = chips;
         }
 
         function renderDynamicFilters() {
@@ -1738,7 +1831,7 @@
                 return `
                     <div class="accordion-item ${isExpanded ? 'open' : ''}" id="filter-acc-${col}">
                         <div class="accordion-header" onclick="toggleAccordion('${col}')">
-                            <span>${displayName} <small style="opacity:0.5; font-weight:400;">(${col})</small></span>
+                            <span>${displayName}</span>
                             <span>${isExpanded ? '−' : '+'}</span>
                         </div>
                         <div class="accordion-content">
@@ -1775,6 +1868,323 @@
             if (index > -1) explorerState.filters[col].values.splice(index, 1);
             else explorerState.filters[col].values.push(val);
         }
+
+        // --- SAVED QUERIES & ALERTS LOGIC ---
+
+        function openSaveQueryModal() {
+            if (explorerState.rawData.length === 0) {
+                alert("No data loaded. Please load a table first.");
+                return;
+            }
+            document.getElementById('save-query-modal').classList.add('open');
+            document.getElementById('save-query-name').value = '';
+            
+            // Generate summary
+            const filterCount = Object.keys(explorerState.filters).filter(k => explorerState.filters[k].values.length > 0).length;
+            const hasTs = document.getElementById('ts-filter-type').value !== 'all';
+            const metricsText = explorerState.summarize ? explorerState.summarize.metrics.map(m => `${m.type}(${getDN(m.field)})`).join(', ') : 'None';
+            const groupText = explorerState.summarize ? explorerState.summarize.groupBy.map(g => getDN(g)).join(', ') : 'None';
+
+            document.getElementById('save-query-summary').innerHTML = `
+                <p style="margin:0 0 8px 0;"><b>Table:</b> ${explorerState.sourceTableName}</p>
+                <p style="margin:0 0 8px 0;"><b>Filters:</b> ${filterCount + (hasTs ? 1 : 0)} active</p>
+                <p style="margin:0 0 8px 0;"><b>Metrics:</b> ${metricsText}</p>
+                <p style="margin:0;"><b>Group By:</b> ${groupText}</p>
+            `;
+        }
+
+        function closeSaveQueryModal() {
+            document.getElementById('save-query-modal').classList.remove('open');
+        }
+
+        function saveCurrentQuery() {
+            const name = document.getElementById('save-query-name').value.trim();
+            if (!name) {
+                alert("Please enter a query name.");
+                return;
+            }
+
+            // Capture state (clean clone)
+            const query = {
+                id: 'q_' + Date.now(),
+                name: name,
+                tableId: explorerState.tableId,
+                botId: explorerState.sourceBotId,
+                tableName: explorerState.sourceTableName,
+                filters: JSON.parse(JSON.stringify(explorerState.filters)),
+                tsFilter: {
+                    type: document.getElementById('ts-filter-type').value,
+                    count: document.getElementById('ts-filter-count').value,
+                    unit: document.getElementById('ts-filter-unit').value,
+                    includeToday: document.getElementById('ts-include-today').checked
+                },
+                summarize: explorerState.summarize ? JSON.parse(JSON.stringify(explorerState.summarize)) : null,
+                createdAt: new Date().toISOString()
+            };
+
+            savedQueries.push(query);
+            localStorage.setItem('explorerQueries', JSON.stringify(savedQueries));
+            closeSaveQueryModal();
+            showNotification("Query saved successfully!");
+            if (currentView === 'saved-queries') renderSavedQueries();
+        }
+
+        function renderSavedQueries() {
+            const container = document.getElementById('queries-list-container');
+            if (savedQueries.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align:center; padding: 60px; background:var(--card); border-radius:16px;">
+                        <div style="font-size: 40px; margin-bottom: 16px;">📑</div>
+                        <h3>No saved queries yet</h3>
+                        <p style="color:var(--text-mute);">Go to Custom Alerts, build a query, and click "Save Query" to see it here.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = savedQueries.map(query => {
+                const alertCount = savedAlerts.filter(a => a.queryId === query.id).length;
+                return `
+                    <div class="table-card" style="padding: 24px;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+                            <div>
+                                <h3 style="margin:0; font-size:18px;">${query.name}</h3>
+                                <p style="font-size:12px; color:var(--text-mute); margin:4px 0 0 0;">${query.tableName} • ${new Date(query.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            ${alertCount > 0 ? '<span class="status-pill success" style="background:#eafaf1; color:#2ecc71;">Active Alert</span>' : ''}
+                        </div>
+                        
+                        <div style="font-size:13px; margin-bottom:24px;">
+                            <div style="margin-bottom:8px;"><span style="color:var(--text-mute);">Metrics:</span> ${query.summarize ? query.summarize.metrics.map(m => m.type).join(', ') : 'Raw Data'}</div>
+                            <div><span style="color:var(--text-mute);">Group By:</span> ${query.summarize ? query.summarize.groupBy.map(g => getDN(g)).join(', ') : 'None'}</div>
+                        </div>
+
+                        <div style="display:flex; gap:8px;">
+                            <button class="bot-select" style="flex:1; background:var(--accent); color:white; border:none; padding:8px;" onclick="runSavedQuery('${query.id}')">Run</button>
+                            <button class="bot-select" style="flex:1; padding:8px;" onclick="openCreateAlertModal('${query.id}')">Alert</button>
+                            <button class="bot-select" style="padding:8px; width:40px; color:var(--critical);" onclick="deleteQuery('${query.id}')">✕</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function deleteQuery(id) {
+            if (!confirm("Are you sure you want to delete this query? Linked alerts will also be removed.")) return;
+            savedQueries = savedQueries.filter(q => q.id !== id);
+            savedAlerts = savedAlerts.filter(a => a.queryId !== id);
+            localStorage.setItem('explorerQueries', JSON.stringify(savedQueries));
+            localStorage.setItem('explorerAlerts', JSON.stringify(savedAlerts));
+            renderSavedQueries();
+        }
+
+        let pendingAlertQueryId = null;
+        function openCreateAlertModal(queryId) {
+            pendingAlertQueryId = queryId;
+            document.getElementById('create-alert-modal').classList.add('open');
+            document.getElementById('alert-emails').value = '';
+            document.getElementById('alert-threshold').value = '100';
+            document.getElementById('alert-suppress-dupes').checked = true;
+        }
+
+        function closeCreateAlertModal() {
+            document.getElementById('create-alert-modal').classList.remove('open');
+            pendingAlertQueryId = null;
+        }
+
+        function saveAlert() {
+            const emails = document.getElementById('alert-emails').value.trim();
+            if (!emails) {
+                alert("Please enter at least one recipient email.");
+                return;
+            }
+
+            const alertVal = {
+                id: 'alt_' + Date.now(),
+                queryId: pendingAlertQueryId,
+                condition: document.getElementById('alert-condition').value,
+                threshold: parseFloat(document.getElementById('alert-threshold').value),
+                frequency: document.getElementById('alert-frequency').value,
+                emails: emails.split(',').map(e => e.trim()),
+                suppressDuplicates: document.getElementById('alert-suppress-dupes').checked,
+                lastTriggeredValue: null,
+                createdAt: new Date().toISOString()
+            };
+
+            savedAlerts.push(alertVal);
+            localStorage.setItem('explorerAlerts', JSON.stringify(savedAlerts));
+            closeCreateAlertModal();
+            showNotification("Alert created successfully! The engine will now monitor this query.");
+            if (currentView === 'saved-queries') renderSavedQueries();
+        }
+
+        function runSavedQuery(queryId) {
+            const query = savedQueries.find(q => q.id === queryId);
+            if (!query) return;
+
+            // 1. Switch to Custom Alerts View
+            switchView('custom');
+            
+            // 2. Load the specific table for that bot
+            document.getElementById('bot-selector').value = query.botId;
+            
+            // We need to wait for categories to load then set the table
+            onCustomTableChange(query.tableName).then(() => {
+                // 3. Re-apply explorer state
+                explorerState.filters = JSON.parse(JSON.stringify(query.filters));
+                explorerState.summarize = query.summarize ? JSON.parse(JSON.stringify(query.summarize)) : null;
+                
+                // Set UI values for filters
+                document.getElementById('ts-filter-type').value = query.tsFilter.type;
+                document.getElementById('ts-filter-count').value = query.tsFilter.count;
+                document.getElementById('ts-filter-unit').value = query.tsFilter.unit;
+                document.getElementById('ts-include-today').checked = query.tsFilter.includeToday;
+                
+                applyFilters();
+                if (explorerState.summarize) {
+                    // Summarize is already applied by applyFilters if state is present
+                    // Wait, usually applyFilters just does raw filtering. 
+                    // Let's ensure applyFilters respects explorerState.summarize
+                }
+            });
+        }
+
+        // Initial render if needed
+        if (currentView === 'saved-queries') renderSavedQueries();
+
+        // --- BACKGROUND ALERT ENGINE ---
+
+        async function executeHeadlessQuery(query) {
+            try {
+                // 1. Fetch data
+                const url = `/api/custom-data?botId=${query.botId}&tableName=${query.tableName}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Fetch failed");
+                const data = await res.json();
+                if (!data || data.length === 0) return 0;
+
+                // 2. Apply Timestamp Filter
+                let filtered = [...data];
+                if (query.tsFilter && query.tsFilter.type !== 'all') {
+                    const now = new Date();
+                    let start = new Date();
+                    const count = parseInt(query.tsFilter.count);
+                    if (query.tsFilter.unit === 'days') start.setDate(now.getDate() - count);
+                    else if (query.tsFilter.unit === 'weeks') start.setDate(now.getDate() - (count * 7));
+                    else if (query.tsFilter.unit === 'months') start.setMonth(now.getMonth() - count);
+
+                    if (!query.tsFilter.includeToday) now.setHours(0,0,0,0);
+
+                    const tsFields = Object.keys(data[0]).filter(k => k.toLowerCase().includes('time') || k.toLowerCase().includes('date') || k.toLowerCase().includes('_at'));
+                    const tsField = tsFields[0]; // Heuristic
+
+                    if (tsField) {
+                        filtered = filtered.filter(row => {
+                            const val = new Date(row[tsField]);
+                            return val >= start && val <= now;
+                        });
+                    }
+                }
+
+                // 3. Apply Field Filters
+                for (const col in query.filters) {
+                    const f = query.filters[col];
+                    if (!f.values || f.values.length === 0) continue;
+                    filtered = filtered.filter(row => {
+                        const cell = String(row[col] || '').toLowerCase();
+                        const targetValues = f.values.map(v => String(v).toLowerCase());
+                        if (f.condition === 'equals' || f.condition === 'in list') return targetValues.includes(cell);
+                        if (f.condition === 'contains') return targetValues.some(v => cell.includes(v));
+                        if (f.condition === 'not equals') return !targetValues.includes(cell);
+                        return true;
+                    });
+                }
+
+                // 4. Returns metric (usually count for alerts)
+                if (query.summarize) {
+                    // Headless summarization logic (simplified)
+                    // For alerts, we usually care about the metric value
+                    // If grouped, we could return max count etc., but user usually wants total count or high error count
+                    // Simplified: return total count of the resulting set
+                    return filtered.length; 
+                }
+
+                return filtered.length;
+            } catch (e) {
+                console.error("Headless Query failed:", e);
+                return null;
+            }
+        }
+
+        async function checkAlerts() {
+            const now = new Date();
+            console.log(`[AlertEngine] Checking ${savedAlerts.length} alerts at ${now.toLocaleTimeString()}`);
+
+            for (const alert of savedAlerts) {
+                // Check frequency
+                const lastChecked = alert.lastChecked ? new Date(alert.lastChecked) : new Date(0);
+                const diffMins = (now - lastChecked) / (1000 * 60);
+
+                let shouldRun = false;
+                if (alert.frequency === '5m' && diffMins >= 5) shouldRun = true;
+                else if (alert.frequency === '15m' && diffMins >= 15) shouldRun = true;
+                else if (alert.frequency === '1h' && diffMins >= 60) shouldRun = true;
+                else if (alert.frequency === '1d' && diffMins >= 1440) shouldRun = true;
+                
+                // For demonstration, run at least once every 5 minutes regardless of setting if never checked
+                if (!alert.lastChecked) shouldRun = true; 
+
+                if (shouldRun) {
+                    const query = savedQueries.find(q => q.id === alert.queryId);
+                    if (!query) continue;
+
+                    const value = await executeHeadlessQuery(query);
+                    if (value === null) continue;
+
+                    let conditionMet = false;
+                    if (alert.condition === 'greater_than' && value > alert.threshold) conditionMet = true;
+                    else if (alert.condition === 'less_than' && value < alert.threshold) conditionMet = true;
+                    else if (alert.condition === 'equals' && value === alert.threshold) conditionMet = true;
+
+                    if (conditionMet) {
+                        // Check duplicate suppression
+                        if (alert.suppressDuplicates && value === alert.lastTriggeredValue) {
+                            console.log(`[AlertEngine] Condition met for "${query.name}" but suppressed (duplicate value: ${value})`);
+                        } else {
+                            triggerAlert(alert, query, value);
+                        }
+                        alert.lastTriggeredValue = value;
+                    }
+
+                    alert.lastChecked = now.toISOString();
+                }
+            }
+            localStorage.setItem('explorerAlerts', JSON.stringify(savedAlerts));
+        }
+
+        function triggerAlert(alert, query, value) {
+            const msg = `ALERT: "${query.name}" triggered! Value: ${value} (Threshold: ${alert.threshold})`;
+            showNotification(msg.replace('ALERT:', '🔔'));
+            console.warn(msg);
+            console.log(`Sending email to: ${alert.emails.join(', ')}`);
+            
+            // Mock email log in console
+            const emailBody = `
+                Subject: Bot Health Monitor - Alert Triggered
+                Hello, 
+                The query "${query.name}" has met your alert condition.
+                Condition: Count ${alert.condition.replace('_', ' ')} ${alert.threshold}
+                Current Value: ${value}
+                Table: ${query.tableName}
+                Time: ${new Date().toLocaleString()}
+            `;
+            console.log("%cEMAIL SENT", "color: white; background: #007aff; padding: 4px 8px; border-radius: 4px;", emailBody);
+        }
+
+        // Run engine every 60 seconds
+        setInterval(checkAlerts, 60000);
+        // Initial check on load after some delay
+        setTimeout(checkAlerts, 5000);
 
         function updateFilterCondition(col, cond) {
             if (!explorerState.filters[col]) explorerState.filters[col] = { condition: 'in list', values: [], expanded: true };
@@ -1839,13 +2249,14 @@
             explorerState.filteredData = filtered;
             explorerState.summarize = null; // Clear summarization when filtering
             renderCustomTable(filtered);
+            updateFilterChips();
             closeFilterPanel();
         }
 
         // --- SUMMARIZATION ---
         function openSummarizeModal() {
             if (explorerState.rawData.length === 0) return;
-            document.getElementById('summarize-modal').style.display = 'flex';
+            document.getElementById('summarize-modal').classList.add('open');
             
             const tableName = document.getElementById('custom-table-select').value;
             const tableSchema = currentSchema ? currentSchema.find(t => t.tableName === tableName) : null;
@@ -1866,13 +2277,13 @@
             const groupByList = document.getElementById('group-by-list');
             groupByList.innerHTML = cols.map(c => `
                 <label class="option-item">
-                    <input type="checkbox" name="groupBy" value="${c}"> ${getDN(c)} <small style="opacity:0.5;">(${c})</small>
+                    <input type="checkbox" name="groupBy" value="${c}"> ${getDN(c)}
                 </label>
             `).join('');
         }
 
         function closeSummarizeModal() {
-            document.getElementById('summarize-modal').style.display = 'none';
+            document.getElementById('summarize-modal').classList.remove('open');
         }
 
         function applySummarize() {
@@ -1938,7 +2349,10 @@
     <div id="filter-panel" class="side-panel">
         <div class="panel-header">
             <h3 style="margin:0; font-size:18px;">Filter</h3>
-            <button class="explorer-btn" onclick="closeFilterPanel()" style="padding:4px 8px;">✕</button>
+            <div style="display:flex; gap:8px;">
+                <button class="explorer-btn" onclick="clearAllFilters()" style="padding:4px 12px; font-size:11px; color:var(--critical);">Clear All</button>
+                <button class="explorer-btn" onclick="closeFilterPanel()" style="padding:4px 8px;">✕</button>
+            </div>
         </div>
         <div class="panel-content">
             <input type="text" id="filter-field-search" class="filter-search" placeholder="Search fields..." oninput="onFilterFieldSearch()">
@@ -1947,6 +2361,7 @@
                 <label style="display:block; font-size:11px; font-weight:700; color:var(--text-mute); margin-bottom:12px; text-transform:uppercase;">Timestamp Filter</label>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
                     <select id="ts-filter-type" class="bot-select" onchange="onTsFilterTypeChange()">
+                        <option value="all">All Time</option>
                         <option value="previous">Previous</option>
                         <option value="last">Last</option>
                         <option value="custom">Custom</option>
@@ -1954,9 +2369,9 @@
                     <div style="display:flex; gap:4px;">
                         <input type="number" id="ts-filter-count" class="bot-select" style="width:60px;" value="7">
                         <select id="ts-filter-unit" class="bot-select">
-                            <option value="day">Days</option>
-                            <option value="week">Weeks</option>
-                            <option value="month">Months</option>
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                            <option value="months">Months</option>
                         </select>
                     </div>
                 </div>
@@ -2009,6 +2424,80 @@
             <div class="panel-footer">
                 <button class="bot-select" style="background:var(--accent); color:white; flex:1; font-weight:600;" onclick="applySummarize()">Summarize Data</button>
                 <button class="bot-select" style="flex:1;" onclick="closeSummarizeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Explorer: Save Query Modal -->
+    <div id="save-query-modal" class="modal-overlay" onclick="if(event.target===this) closeSaveQueryModal()">
+        <div class="modal-card" style="max-width:450px;">
+            <div class="panel-header">
+                <h3 style="margin:0; font-size:18px;">Save Query</h3>
+                <button class="explorer-btn" onclick="closeSaveQueryModal()" style="padding:4px 8px;">✕</button>
+            </div>
+            <div class="panel-content">
+                <div style="margin-bottom:20px;">
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-mute); margin-bottom:12px; text-transform:uppercase;">Query Name</label>
+                    <input type="text" id="save-query-name" class="bot-select" style="width:100%; border:1px solid var(--border);" placeholder="e.g., High Error APIs last 24h">
+                </div>
+                <div id="save-query-summary" style="font-size:12px; color:var(--text-mute); background:rgba(0,0,0,0.02); padding:12px; border-radius:8px;">
+                    <!-- Auto-summarized details will appear here -->
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button class="bot-select" style="background:var(--accent); color:white; flex:1; font-weight:600;" onclick="saveCurrentQuery()">Save Query</button>
+                <button class="bot-select" style="flex:1;" onclick="closeSaveQueryModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Creation Modal -->
+    <div id="create-alert-modal" class="modal-overlay" onclick="if(event.target===this) closeCreateAlertModal()">
+        <div class="modal-card" style="max-width:500px;">
+            <div class="panel-header">
+                <h3 style="margin:0; font-size:18px;">Create Alert</h3>
+                <button class="explorer-btn" onclick="closeCreateAlertModal()" style="padding:4px 8px;">✕</button>
+            </div>
+            <div class="panel-content">
+                <div style="margin-bottom:24px;">
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-mute); margin-bottom:12px; text-transform:uppercase;">Threshold Condition</label>
+                    <div style="display:flex; gap:12px; align-items:center;">
+                        <span style="font-size:13px; font-weight:500;">If count is</span>
+                        <select id="alert-condition" class="bot-select" style="width:140px; border:1px solid var(--border);">
+                            <option value="greater_than">greater than</option>
+                            <option value="less_than">less than</option>
+                            <option value="equals">equals</option>
+                        </select>
+                        <input type="number" id="alert-threshold" class="bot-select" style="width:80px; border:1px solid var(--border);" value="100">
+                    </div>
+                </div>
+
+                <div style="margin-bottom:24px;">
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-mute); margin-bottom:12px; text-transform:uppercase;">Check Condition Frequency</label>
+                    <select id="alert-frequency" class="bot-select" style="width:100%; border:1px solid var(--border);">
+                        <option value="5m">Every 5 mins</option>
+                        <option value="15m">Every 15 mins</option>
+                        <option value="1h">Hourly</option>
+                        <option value="1d">Daily</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom:24px;">
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-mute); margin-bottom:12px; text-transform:uppercase;">Recipients</label>
+                    <input type="text" id="alert-emails" class="bot-select" style="width:100%; border:1px solid var(--border);" placeholder="Enter emails (comma separated)...">
+                    <p style="font-size:10px; color:var(--text-mute); margin-top:4px;">Comma-separated values (e.g., test@email.com, dev@email.com)</p>
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label class="option-item" style="align-items: flex-start; gap:12px;">
+                        <input type="checkbox" id="alert-suppress-dupes" style="margin-top:2px;"> 
+                        <span>If the value between two condition checks remains the same, don't send emails</span>
+                    </label>
+                </div>
+            </div>
+            <div class="panel-footer">
+                <button id="btn-create-alert" class="bot-select" style="background:var(--accent); color:white; flex:1; font-weight:600;" onclick="saveAlert()">Create Alert</button>
+                <button class="bot-select" style="flex:1;" onclick="closeCreateAlertModal()">Cancel</button>
             </div>
         </div>
     </div>
