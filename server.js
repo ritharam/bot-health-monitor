@@ -170,8 +170,10 @@ if (!process.env.VERCEL) {
   setInterval(pollAllBots, SYNC_INTERVAL);
 }
 
+const apiRouter = express.Router();
+
 // Manual sync endpoint for Vercel Cron
-app.get('/api/sync', async (req, res) => {
+apiRouter.get('/sync', async (req, res) => {
   try {
     await pollAllBots();
     res.json({ success: true, message: 'Sync completed' });
@@ -181,7 +183,7 @@ app.get('/api/sync', async (req, res) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     environment: process.env.VERCEL ? 'vercel' : 'local',
@@ -191,7 +193,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // API endpoint
-app.get('/api/alerts', (req, res) => {
+apiRouter.get('/alerts', (req, res) => {
   const { botId } = req.query;
   let query = 'SELECT * FROM api_alerts';
   let params = [];
@@ -209,7 +211,7 @@ app.get('/api/alerts', (req, res) => {
   res.json({ alerts, error: error?.error });
 });
 
-app.get('/api/llm-metrics', (req, res) => {
+apiRouter.get('/llm-metrics', (req, res) => {
   const { botId } = req.query;
 
   // Hard cleanup: Remove any accidentally stored success records
@@ -230,7 +232,7 @@ app.get('/api/llm-metrics', (req, res) => {
   res.json({ metrics, error: error?.error });
 });
 
-app.get('/api/kb-metrics', (req, res) => {
+apiRouter.get('/kb-metrics', (req, res) => {
   const { botId } = req.query;
 
   // Hard cleanup: Remove any accidentally stored answered records
@@ -251,7 +253,7 @@ app.get('/api/kb-metrics', (req, res) => {
   res.json({ metrics, error: error?.error });
 });
 
-app.get('/api/downtime-metrics', (req, res) => {
+apiRouter.get('/downtime-metrics', (req, res) => {
   const { botId } = req.query;
   let query = 'SELECT * FROM bot_downtime';
   let params = [];
@@ -268,7 +270,7 @@ app.get('/api/downtime-metrics', (req, res) => {
   res.json({ metrics, error: error?.error });
 });
 
-app.get('/api/unresponsive-metrics', (req, res) => {
+apiRouter.get('/unresponsive-metrics', (req, res) => {
   const { botId } = req.query;
   // Use bot_downtime table (where delay_seconds=0) as the source for unresponsive sessions
   let query = 'SELECT * FROM bot_downtime WHERE delay_seconds = 0';
@@ -286,7 +288,7 @@ app.get('/api/unresponsive-metrics', (req, res) => {
   res.json({ records, error: error?.error });
 });
 
-app.get('/api/summary', (req, res) => {
+apiRouter.get('/summary', (req, res) => {
   const { botId } = req.query;
   const summary = {};
 
@@ -335,7 +337,7 @@ app.get('/api/summary', (req, res) => {
   }
 });
 
-app.get('/api/schema', async (req, res) => {
+apiRouter.get('/schema', async (req, res) => {
     const { botId } = req.query;
     const bot = MONITORED_BOTS.find(b => b.id === botId);
 
@@ -398,7 +400,7 @@ app.get('/api/schema', async (req, res) => {
     }
   });
 
-  app.get('/api/custom-data', async (req, res) => {
+  apiRouter.get('/custom-data', async (req, res) => {
     const { botId, tableName } = req.query;
     const bot = MONITORED_BOTS.find(b => b.id === botId);
 
@@ -419,7 +421,7 @@ app.get('/api/schema', async (req, res) => {
     }
   });
 
-  app.get('/api/categorize-attributes', async (req, res) => {
+  apiRouter.get('/categorize-attributes', async (req, res) => {
     const { botId, tableName, attributes } = req.query;
     if (!attributes) return res.status(400).json({ error: 'Attributes are required' });
     
@@ -433,7 +435,7 @@ app.get('/api/schema', async (req, res) => {
     }
   });
 
-  app.get('/api/history', async (req, res) => {
+  apiRouter.get('/history', async (req, res) => {
     try {
       const results = await getConsolidatedHistory(db, req.query);
       res.json(results);
@@ -443,7 +445,7 @@ app.get('/api/schema', async (req, res) => {
     }
   });
 
-  app.post('/api/archive-custom', (req, res) => {
+  apiRouter.post('/archive-custom', (req, res) => {
     const { botId, tableName, records } = req.body;
     if (!botId || !tableName || !records) {
       return res.status(400).json({ error: 'Incomplete data for archiving' });
@@ -460,12 +462,15 @@ app.get('/api/schema', async (req, res) => {
     }
   });
 
-  app.get('/api/archive-detail/:id', (req, res) => {
+  apiRouter.get('/archive-detail/:id', (req, res) => {
     const { id } = req.params;
     const archive = db.prepare('SELECT * FROM custom_archives WHERE id = ?').get(id);
     if (!archive) return res.status(404).json({ error: 'Archive not found' });
     res.json({ ...archive, recordsJson: JSON.parse(archive.recordsJson) });
   });
+
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 if (!process.env.VERCEL) {
   app.listen(port, () => {
