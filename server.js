@@ -398,9 +398,9 @@ apiRouter.get('/schema', async (req, res) => {
       console.error('Error fetching schema:', error);
       res.status(500).json({ error: 'Failed to fetch schema', message: error.message });
     }
-  });
+});
 
-  apiRouter.get('/custom-data', async (req, res) => {
+apiRouter.get('/custom-data', async (req, res) => {
     const { botId, tableName } = req.query;
     const bot = MONITORED_BOTS.find(b => b.id === botId);
 
@@ -419,9 +419,9 @@ apiRouter.get('/schema', async (req, res) => {
       console.error(`Error fetching custom data for ${tableName}:`, error);
       res.status(500).json({ error: 'Failed to fetch custom data', message: error.message });
     }
-  });
+});
 
-  apiRouter.get('/categorize-attributes', async (req, res) => {
+apiRouter.get('/categorize-attributes', async (req, res) => {
     const { botId, tableName, attributes } = req.query;
     if (!attributes) return res.status(400).json({ error: 'Attributes are required' });
     
@@ -433,9 +433,9 @@ apiRouter.get('/schema', async (req, res) => {
       console.error('Error in /api/categorize-attributes:', error);
       res.status(500).json({ error: 'Failed to categorize attributes' });
     }
-  });
+});
 
-  apiRouter.get('/history', async (req, res) => {
+apiRouter.get('/history', async (req, res) => {
     try {
       const results = await getConsolidatedHistory(db, req.query);
       res.json(results);
@@ -443,9 +443,9 @@ apiRouter.get('/schema', async (req, res) => {
       console.error('Error fetching unified history:', error);
       res.status(500).json({ error: 'Failed to fetch history' });
     }
-  });
+});
 
-  apiRouter.post('/archive-custom', (req, res) => {
+apiRouter.post('/archive-custom', (req, res) => {
     const { botId, tableName, records } = req.body;
     if (!botId || !tableName || !records) {
       return res.status(400).json({ error: 'Incomplete data for archiving' });
@@ -460,14 +460,14 @@ apiRouter.get('/schema', async (req, res) => {
       console.error('Error archiving custom data:', error);
       res.status(500).json({ error: 'Failed to archive data' });
     }
-  });
+});
 
-  apiRouter.get('/archive-detail/:id', (req, res) => {
+apiRouter.get('/archive-detail/:id', (req, res) => {
     const { id } = req.params;
     const archive = db.prepare('SELECT * FROM custom_archives WHERE id = ?').get(id);
     if (!archive) return res.status(404).json({ error: 'Archive not found' });
     res.json({ ...archive, recordsJson: JSON.parse(archive.recordsJson) });
-  });
+});
 
 app.use('/api', apiRouter);
 app.use('/', apiRouter);
