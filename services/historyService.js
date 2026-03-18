@@ -1,4 +1,4 @@
-// Standardizing to native fetch for better production compatibility (Node 18+)
+import fetch from 'node-fetch';
 
 const MONITORED_BOTS = [
     { id: 'x1749095342235', apiKey: 'oC73e4WTensl0_l4O4L4cgXHCQ4y0dGaoxyEXVjr', name: 'Kent RO' },
@@ -12,7 +12,7 @@ async function yellowFetch(botId, apiKey, payload) {
     let allRecords = [];
     let currentOffset = 0;
     const batchLimit = 10000;
-    const maxTotalRecords = process.env.VERCEL ? 5000 : 300000; // Cap at 5k for Vercel to stay under 4.5MB response limit
+    const maxTotalRecords = 300000; // Increased safety cap
 
     while (allRecords.length < maxTotalRecords) {
         const batchPayload = { ...payload, offset: currentOffset, limit: batchLimit };

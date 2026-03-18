@@ -335,8 +335,7 @@ app.get('/api/summary', (req, res) => {
   }
 });
 
-if (!process.env.VERCEL) {
-  app.get('/api/schema', async (req, res) => {
+app.get('/api/schema', async (req, res) => {
     const { botId } = req.query;
     const bot = MONITORED_BOTS.find(b => b.id === botId);
 
@@ -468,6 +467,7 @@ if (!process.env.VERCEL) {
     res.json({ ...archive, recordsJson: JSON.parse(archive.recordsJson) });
   });
 
+if (!process.env.VERCEL) {
   app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
   });
