@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// Standardizing to native fetch for better production compatibility (Node 18+)
 
 export async function fetchCustomData(botId, apiKey, tableName) {
     console.log(`--- CUSTOM DATA REQUEST (24h) ---`);
@@ -9,7 +9,7 @@ export async function fetchCustomData(botId, apiKey, tableName) {
     let allRecords = [];
     let currentOffset = 0;
     const batchLimit = 10000;
-    const maxTotalRecords = 300000;
+    const maxTotalRecords = process.env.VERCEL ? 5000 : 300000;
 
     while (allRecords.length < maxTotalRecords) {
         const payload = {
